@@ -45,7 +45,7 @@ Open **http://localhost:3000** in your browser.
 
 ---
 
-## Connecting an External MySQL Database (Optional)
+## Connecting an External MySQL Database
 
 When you are ready to connect an external MySQL database (such as **Railway**, **Aiven**, **PlanetScale**, **Google Cloud SQL**, or local MySQL):
 
