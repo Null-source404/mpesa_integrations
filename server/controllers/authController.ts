@@ -11,142 +11,150 @@ import {
 import { normalizeKenyanPhone, isValidKenyanPhone } from '../services/mpesa.js';
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, phone, password, accountType } = req.body as {
-    name?: string;
-    email?: string;
-    phone?: string;
-    password?: string;
-    accountType?: 'personal' | 'merchant';
-  };
+  try {
+    const { name, email, phone, password, accountType } = req.body as {
+      name?: string;
+      email?: string;
+      phone?: string;
+      password?: string;
+      accountType?: 'personal' | 'merchant';
+    };
 
-  const cleanName = sanitizeText(name, 60);
-  const cleanEmail = sanitizeText(email, 80).toLowerCase();
-  const rawPhone = String(phone || '').trim();
-  const rawPassword = String(password || '');
+    const cleanName = sanitizeText(name, 60);
+    const cleanEmail = sanitizeText(email, 80).toLowerCase();
+    const rawPhone = String(phone || '').trim();
+    const rawPassword = String(password || '');
 
-  if (!cleanName || cleanName.length < 2) {
-    res.status(400).json({ message: 'Please enter your full name (at least 2 characters).' });
-    return;
-  }
+    if (!cleanName || cleanName.length < 2) {
+      res.status(400).json({ message: 'Please enter your full name.' });
+      return;
+    }
 
-  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    res.status(400).json({ message: 'Please provide a valid email address.' });
-    return;
-  }
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      res.status(400).json({ message: 'Please enter a valid email address.' });
+      return;
+    }
 
-  if (!isValidKenyanPhone(rawPhone)) {
-    res.status(400).json({
-      message: 'Please provide a valid Kenyan M-Pesa number (07XXXXXXXX or 2547XXXXXXXX).',
+    if (!isValidKenyanPhone(rawPhone)) {
+      res.status(400).json({
+        message: 'Please enter a valid Kenyan M-Pesa phone number (for example, 0712 345 678).',
+      });
+      return;
+    }
+
+    if (rawPassword.length < 8) {
+      res.status(400).json({
+        message: 'Please choose a password that is at least 8 characters long.',
+      });
+      return;
+    }
+
+    if (userStore.findByEmail(cleanEmail)) {
+      res.status(409).json({
+        message: 'An account with this email already exists. Please sign in instead.',
+      });
+      return;
+    }
+
+    const normalizedPhone = normalizeKenyanPhone(rawPhone);
+    const newUser: StoredUser = {
+      id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: cleanName,
+      email: cleanEmail,
+      phone: normalizedPhone,
+      accountType: accountType === 'merchant' ? 'merchant' : 'personal',
+      createdAt: new Date().toISOString(),
+      passwordHash: hashPassword(rawPassword),
+    };
+
+    userStore.create(newUser);
+    const token = createSessionToken(newUser.id, newUser.email);
+
+    appendAuditLog({
+      event: 'USER_REGISTERED',
+      billId: 'AUTH',
+      actor: newUser.name,
+      details: `Created new ${newUser.accountType} account`,
+      severity: 'success',
     });
-    return;
-  }
 
-  if (rawPassword.length < 8) {
-    res.status(400).json({
-      message: 'Password must be at least 8 characters long.',
+    res.status(201).json({
+      message: 'Welcome to SplitPesa! Your account is ready.',
+      user: userStore.toPublicUser(newUser),
+      token,
     });
-    return;
-  }
-
-  if (userStore.findByEmail(cleanEmail)) {
-    res.status(409).json({
-      message: 'An account with this email address already exists. Please sign in instead.',
+  } catch {
+    res.status(500).json({
+      message: 'We could not create your account right now. Please try again in a moment.',
     });
-    return;
   }
-
-  const normalizedPhone = normalizeKenyanPhone(rawPhone);
-  const newUser: StoredUser = {
-    id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
-    name: cleanName,
-    email: cleanEmail,
-    phone: normalizedPhone,
-    accountType: accountType === 'merchant' ? 'merchant' : 'personal',
-    createdAt: new Date().toISOString(),
-    passwordHash: hashPassword(rawPassword),
-  };
-
-  userStore.create(newUser);
-  const token = createSessionToken(newUser.id, newUser.email);
-
-  appendAuditLog({
-    event: 'USER_REGISTERED',
-    billId: 'AUTH',
-    actor: newUser.name,
-    details: `Registered new ${newUser.accountType} account (${newUser.email}, +${newUser.phone})`,
-    severity: 'success',
-  });
-
-  res.status(201).json({
-    message: 'Account created successfully',
-    user: userStore.toPublicUser(newUser),
-    token,
-  });
 };
 
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  const cleanEmail = sanitizeText(email, 80).toLowerCase();
-  const rawPassword = String(password || '');
+  try {
+    const { email, password } = req.body as { email?: string; password?: string };
+    const cleanEmail = sanitizeText(email, 80).toLowerCase();
+    const rawPassword = String(password || '');
 
-  if (!cleanEmail || !rawPassword) {
-    res.status(400).json({ message: 'Please enter both your email address and password.' });
-    return;
-  }
+    if (!cleanEmail || !rawPassword) {
+      res.status(400).json({ message: 'Please enter both your email address and password.' });
+      return;
+    }
 
-  const existing = userStore.findByEmail(cleanEmail);
-  if (!existing || !verifyPassword(rawPassword, existing.passwordHash)) {
-    appendAuditLog({
-      event: 'AUTH_LOGIN_FAILED',
-      billId: 'AUTH',
-      actor: cleanEmail,
-      details: `Failed sign-in attempt for email ${cleanEmail}`,
-      severity: 'warning',
+    const existing = userStore.findByEmail(cleanEmail);
+    if (!existing || !verifyPassword(rawPassword, existing.passwordHash)) {
+      res.status(401).json({
+        message: 'That email or password did not match our records. Please try again.',
+      });
+      return;
+    }
+
+    const token = createSessionToken(existing.id, existing.email);
+
+    res.status(200).json({
+      message: 'Welcome back!',
+      user: userStore.toPublicUser(existing),
+      token,
     });
-    res.status(401).json({ message: 'Invalid email or password. Please try again.' });
-    return;
+  } catch {
+    res.status(500).json({
+      message: 'We could not sign you in right now. Please try again in a moment.',
+    });
   }
-
-  const token = createSessionToken(existing.id, existing.email);
-  appendAuditLog({
-    event: 'USER_LOGIN',
-    billId: 'AUTH',
-    actor: existing.name,
-    details: `Authenticated session started for ${existing.email}`,
-    severity: 'info',
-  });
-
-  res.status(200).json({
-    message: 'Signed in successfully',
-    user: userStore.toPublicUser(existing),
-    token,
-  });
 };
 
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const verified = verifySessionToken(token);
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const verified = verifySessionToken(token);
 
-  if (!verified.valid || !verified.userId) {
-    res.status(401).json({ message: 'Session expired or unauthenticated' });
-    return;
+    if (!verified.valid || !verified.userId) {
+      res.status(401).json({ message: 'Please sign in to continue.' });
+      return;
+    }
+
+    const user = userStore.findById(verified.userId);
+    if (!user) {
+      res.status(401).json({ message: 'Please sign in to continue.' });
+      return;
+    }
+
+    res.status(200).json({ user: userStore.toPublicUser(user) });
+  } catch {
+    res.status(401).json({ message: 'Please sign in to continue.' });
   }
-
-  const user = userStore.findById(verified.userId);
-  if (!user) {
-    res.status(401).json({ message: 'Account not found' });
-    return;
-  }
-
-  res.status(200).json({ user: userStore.toPublicUser(user) });
 };
 
 export const logoutUser = async (req: Request, res: Response): Promise<void> => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  if (token) {
-    revokeSessionToken(token);
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (token) {
+      revokeSessionToken(token);
+    }
+    res.status(200).json({ message: 'You have been signed out.' });
+  } catch {
+    res.status(200).json({ message: 'You have been signed out.' });
   }
-  res.status(200).json({ message: 'Signed out' });
 };

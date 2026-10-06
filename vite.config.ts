@@ -12,10 +12,10 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'icon.svg', 'apple-touch-icon.png'],
       manifest: {
         id: '/',
-        name: 'SplitPesa — M-Pesa Bill Splitter & Settlement Ledger',
+        name: 'SplitPesa — M-Pesa Bill Splitter',
         short_name: 'SplitPesa',
         description:
-          'Split shared bills, dispatch Safaricom Daraja M-Pesa STK Push prompts, and reconcile verified payment receipts.',
+          'Split shared bills with friends, send M-Pesa payment requests, and track receipts in real time.',
         theme_color: '#0f172a',
         background_color: '#f8fafc',
         display: 'standalone',
@@ -77,8 +77,7 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true,
-        type: 'module',
+        enabled: false,
       },
     }),
   ],
@@ -86,5 +85,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     allowedHosts: true,
+    hmr: false,
   },
 });

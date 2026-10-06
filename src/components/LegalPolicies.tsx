@@ -29,14 +29,14 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
   return (
     <div className="py-12 px-6 max-w-[1280px] w-full mx-auto space-y-8">
       <div className="max-w-3xl">
-        <div className="text-xs font-mono font-semibold text-emerald-700">
-          Legal, Regulatory & Data Governance Center
+        <div className="text-xs font-semibold text-emerald-700">
+          Trust, Privacy & Legal Center
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mt-1">
-          Transparent Policies & Regulatory Compliance
+          Clear, Honest Policies You Can Trust
         </h1>
         <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-          SplitPesa operates in strict accordance with the Kenya Data Protection Act, 2019 (ODPC), the National Payment System Act, the Proceeds of Crime and Anti-Money Laundering Act (POCAMLA), and Safaricom Daraja API Developer Terms. Every statement below reflects the exact technical behavior of this application.
+          We wrote our policies in plain, everyday English so you know exactly how SplitPesa protects your privacy, handles M-Pesa payment requests, and complies with the Kenya Data Protection Act, 2019 (ODPC) and National Payment System guidelines.
         </p>
       </div>
 
@@ -44,11 +44,11 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl border border-slate-200">
         {(
           [
-            { id: 'privacy', label: '1. Privacy Policy (KDPA 2019)', Icon: Lock },
+            { id: 'privacy', label: '1. Privacy Policy', Icon: Lock },
             { id: 'terms', label: '2. Terms & Conditions', Icon: FileText },
-            { id: 'cookies', label: '3. Cookie & Storage Policy', Icon: Cookie },
-            { id: 'aml', label: '4. AML & Acceptable Use', Icon: Scale },
-            { id: 'reversals', label: '5. Payment & Reversal Policy', Icon: RotateCcw },
+            { id: 'cookies', label: '3. Cookie & Storage Notice', Icon: Cookie },
+            { id: 'aml', label: '4. Fair Use & Safety Policy', Icon: Scale },
+            { id: 'reversals', label: '5. Refunds & M-Pesa Reversals', Icon: RotateCcw },
           ] as const
         ).map((tab) => {
           const Icon = tab.Icon;
@@ -81,65 +81,65 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
                   Privacy Policy & Data Protection Notice
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Statutory Reference: Kenya Data Protection Act, No. 24 of 2019 (ODPC) & GDPR Principles
+                  Prepared in accordance with the Kenya Data Protection Act, 2019 (ODPC)
                 </p>
               </div>
-              <span className="text-xs font-mono text-slate-500">Effective: October 2026</span>
+              <span className="text-xs text-slate-500">Updated: October 2026</span>
             </div>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                1. Personal Data We Collect and Process
+                1. Information We Collect
               </h3>
               <p>
-                SplitPesa collects only the minimum personal and transactional data required to initiate Safaricom M-Pesa Express (`CustomerPayBillOnline`) requests and maintain accounting reconciliation records:
+                We only collect the minimum details needed to split your bill and send M-Pesa payment requests:
               </p>
-              <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
+              <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-700 pl-2">
                 <li>
-                  <strong>Organizer Account Data:</strong> Full Name, Email Address, Kenyan M-Pesa Phone Number (`2547XXXXXXXX` / `2541XXXXXXXX`), and account classification (`personal` or `merchant`). Passwords are never stored in plain text; they are salted with 16 random bytes and hashed via `crypto.scryptSync`.
+                  <strong>Your Account Details:</strong> Your name, email address, and M-Pesa phone number when you create an account. Your password is encrypted before saving so nobody—not even our team—can read it.
                 </li>
                 <li>
-                  <strong>Participant Split Data:</strong> Participant Name, Kenyan MSISDN phone number, allocated KES share amount, and expense description.
+                  <strong>Shared Bill Details:</strong> The bill description (such as &ldquo;Friday Team Lunch&rdquo;), each friend’s name, phone number, and their share of the bill.
                 </li>
                 <li>
-                  <strong>Safaricom Daraja Callback Metadata:</strong> `MerchantRequestID`, `CheckoutRequestID`, `ResultCode`, `MpesaReceiptNumber` (e.g., `SJK94M2QW1`), and transaction timestamp returned by Safaricom PLC upon payment completion.
+                  <strong>Payment Confirmation Details:</strong> Whether a payment succeeded or was cancelled, the amount paid, and the M-Pesa receipt code (for example, <code>SJK94M2QW1</code>) so everyone has proof of payment.
                 </li>
               </ul>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                2. Zero Access to M-Pesa PINs (Critical Security Disclosure)
+                2. We Never Ask For or See Your M-Pesa PIN
               </h3>
               <p>
-                <strong>SplitPesa never requests, receives, views, transmits, or stores your M-Pesa PIN.</strong> When an STK Push is dispatched via Safaricom’s Daraja API, the PIN prompt is rendered directly on the participant’s mobile handset via the Safaricom SIM Toolkit over the cellular network. You should never enter your M-Pesa PIN on any website form.
+                <strong>SplitPesa never asks for, sees, or stores your M-Pesa PIN.</strong> When a payment request is sent, the official M-Pesa prompt pops up directly on your phone screen from Safaricom. You enter your PIN privately on your own phone—never on our website.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                3. Lawful Basis & Purpose of Processing
+                3. How We Use Your Information
               </h3>
               <p>
-                Under Section 30 of the Kenya Data Protection Act, 2019, we process personal data strictly for the performance of a payment request initiated by the user, compliance with financial record-keeping and anti-fraud obligations, and legitimate interest in preventing duplicate charges via `X-Idempotency-Key` verification.
+                We use your information solely to calculate each person’s share of a bill, send the M-Pesa payment prompt to their phone, update your bill tracker when payments arrive, and prevent accidental double charges.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                4. Data Sharing & Third-Party Sub-Processors
+                4. No Selling of Personal Data
               </h3>
               <p>
-                We do not sell, rent, or trade personal phone numbers or transaction histories to advertisers or data brokers. Participant phone numbers and KES amounts are transmitted exclusively to <strong>Safaricom PLC (Daraja API Gateway)</strong> to deliver the STK Push prompt to the participant’s device.
+                We never sell, rent, or share phone numbers or payment records with advertisers or marketing companies. Phone numbers and payment amounts are shared only with Safaricom M-Pesa when sending a payment request you initiated.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                5. Your Rights as a Data Subject (Section 26, KDPA 2019)
+                5. Your Privacy Rights
               </h3>
               <p>
-                You have the right to be informed of the use to which your personal data is to be put, to access your transaction ledger in portable CSV format (`Export CSV`), to rectify inaccurate saved contacts, and to delete saved contacts at any time from the <strong>Contacts & Groups</strong> workspace.
+                Under the Kenya Data Protection Act, 2019, you can view your payment history at any time, download a copy of your records as a spreadsheet (CSV), update your saved contacts, or delete saved friends from your address book whenever you wish.
               </p>
             </section>
           </div>
@@ -153,53 +153,53 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
                   Terms & Conditions of Service
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Governing Law: Laws of the Republic of Kenya
+                  Governed by the Laws of the Republic of Kenya
                 </p>
               </div>
-              <span className="text-xs font-mono text-slate-500">Version 2026.10</span>
+              <span className="text-xs text-slate-500">Effective: October 2026</span>
             </div>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                1. Nature of the Platform (Non-Custodial Technical Software)
+                1. What SplitPesa Does
               </h3>
               <p>
-                SplitPesa is a software application that calculates bill allocations, dispatches payment prompts through the Safaricom Daraja M-Pesa Express API (`CustomerPayBillOnline`), and reconciles webhook receipt notifications. SplitPesa is a technical software interface and <strong>not a licensed bank, deposit-taking microfinance institution, or money remittance operator</strong>. All payments settle directly from the participant’s M-Pesa wallet into the configured Safaricom PayBill or BuyGoods Till shortcode.
+                SplitPesa is a bill-splitting and payment-tracking tool that helps friends, housemates, and businesses divide shared expenses and send M-Pesa payment prompts. SplitPesa is a software tool—<strong>not a bank or deposit-taking institution</strong>. All payments go directly from the payer’s M-Pesa account to the configured PayBill or BuyGoods Till number.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                2. Organizer Consent & Anti-Spam Obligations
+                2. Getting Permission Before Sending Payment Prompts
               </h3>
               <p>
-                By entering participant M-Pesa phone numbers into SplitPesa, you represent and warrant that:
+                When you enter phone numbers into SplitPesa, you agree that:
               </p>
               <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
                 <li>
-                  All listed participants are aware of the shared expense and have consented to receive an M-Pesa STK Push payment prompt on their mobile device.
+                  Everyone listed on the bill knows about the shared expense and expects to receive an M-Pesa payment request on their phone.
                 </li>
                 <li>
-                  You will not use SplitPesa to send unsolicited payment prompts to random phone numbers or harass individuals.
+                  You will not send unsolicited payment prompts to strangers or repeatedly send prompts to annoy anyone.
                 </li>
               </ul>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                3. Transaction Limits & Mathematical Rounding
+                3. M-Pesa Payment Limits
               </h3>
               <p>
-                In compliance with Safaricom M-Pesa limits, individual participant shares must be between <strong>KES 1.00 and KES 250,000.00</strong>, and total batch bills may not exceed <strong>KES 500,000.00</strong>. Please note that Safaricom’s `CustomerPayBillOnline` endpoint requires whole-shilling integer amounts (`Math.ceil(amount)`) when dispatching the cellular STK prompt.
+                In line with standard Safaricom M-Pesa rules, each person’s share must be between <strong>KES 1.00 and KES 250,000.00</strong>, and a single shared bill cannot exceed <strong>KES 500,000.00</strong> across 2 to 15 people.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                4. Sandbox vs. Production Environment Disclosure
+                4. Demo Mode vs. Live M-Pesa Mode
               </h3>
               <p>
-                When operated without live Safaricom Daraja production credentials, SplitPesa runs in a deterministic <strong>Sandbox Mode</strong> for testing and demonstration. In Sandbox Mode, no real funds are deducted from M-Pesa accounts. Live cellular PIN prompts occur only when valid Safaricom Daraja credentials (`DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_SHORTCODE`, `DARAJA_PASSKEY`, and `DARAJA_CALLBACK_URL`) are configured on the server.
+                When run without live Safaricom business credentials, SplitPesa operates in a safe <strong>Demo & Practice Mode</strong> so you can test splitting bills and confirming payments without deducting real money. When connected to live Safaricom M-Pesa credentials, real M-Pesa PIN prompts are sent to participants’ phones.
               </p>
             </section>
           </div>
@@ -210,23 +210,23 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
             <div className="pb-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
-                  Cookie & Local Storage Policy
+                  Cookie & Browser Storage Notice
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Strict Essential-Only Storage · Zero Third-Party Advertising Trackers
+                  Essential Storage Only · Zero Advertising Trackers
                 </p>
               </div>
-              <span className="text-xs font-mono text-emerald-700 font-semibold">
-                Zero Ad Trackers Verified
+              <span className="text-xs text-emerald-700 font-semibold">
+                No Ad Trackers Used
               </span>
             </div>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                1. Truthful Disclosure of Browser Storage Used
+                1. How We Use Browser Storage
               </h3>
               <p>
-                SplitPesa does <strong>not</strong> use third-party advertising cookies, cross-site tracking pixels, or behavioral profiling scripts. We use browser `localStorage` and Service Worker Cache Storage strictly for essential application functionality:
+                SplitPesa does <strong>not</strong> use advertising cookies, tracking pixels, or analytics scripts that follow you across other websites. We only save basic settings on your device so the app works smoothly:
               </p>
             </section>
 
@@ -234,52 +234,38 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="py-2.5 px-4">Storage Key / Mechanism</th>
-                    <th className="py-2.5 px-4">Type</th>
-                    <th className="py-2.5 px-4">Purpose</th>
-                    <th className="py-2.5 px-4">Lifespan</th>
+                    <th className="py-2.5 px-4">Setting</th>
+                    <th className="py-2.5 px-4">Why It Is Needed</th>
+                    <th className="py-2.5 px-4">How Long It Stays</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   <tr>
-                    <td className="py-2.5 px-4 font-mono font-semibold text-slate-900">
-                      splitpesa_auth_token
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">
+                      Sign-In Session
                     </td>
-                    <td className="py-2.5 px-4">localStorage</td>
                     <td className="py-2.5 px-4">
-                      Stores your HMAC-SHA256 signed authentication session token.
+                      Keeps you signed in so you do not have to enter your password every time you refresh the page.
                     </td>
-                    <td className="py-2.5 px-4 font-mono">7 days / Sign Out</td>
+                    <td className="py-2.5 px-4">7 days or until you Sign Out</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4 font-mono font-semibold text-slate-900">
-                      splitpesa_auth_user
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">
+                      Privacy Notice Choice
                     </td>
-                    <td className="py-2.5 px-4">localStorage</td>
                     <td className="py-2.5 px-4">
-                      Caches your non-sensitive profile display name and phone number.
+                      Remembers that you closed the bottom privacy banner so it does not keep popping up.
                     </td>
-                    <td className="py-2.5 px-4 font-mono">Until Sign Out</td>
+                    <td className="py-2.5 px-4">1 year</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4 font-mono font-semibold text-slate-900">
-                      splitpesa_cookie_consent_v1
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">
+                      Offline App Cache
                     </td>
-                    <td className="py-2.5 px-4">localStorage</td>
                     <td className="py-2.5 px-4">
-                      Remembers your acknowledgment of this Cookie & Storage notice.
+                      Helps the installed mobile and desktop app open quickly even when your internet connection is slow.
                     </td>
-                    <td className="py-2.5 px-4 font-mono">365 days</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-4 font-mono font-semibold text-slate-900">
-                      workbox-precache / fonts
-                    </td>
-                    <td className="py-2.5 px-4">Cache Storage (PWA)</td>
-                    <td className="py-2.5 px-4">
-                      Allows the Progressive Web App to load quickly on Android & iOS devices.
-                    </td>
-                    <td className="py-2.5 px-4 font-mono">Auto-updated</td>
+                    <td className="py-2.5 px-4">Updated automatically</td>
                   </tr>
                 </tbody>
               </table>
@@ -291,51 +277,40 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
           <div className="space-y-6">
             <div className="pb-4 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900">
-                Acceptable Use, Anti-Fraud & AML Policy
+                Fair Use, Anti-Fraud & Safety Policy
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Statutory Reference: Proceeds of Crime and Anti-Money Laundering Act (POCAMLA) & National Payment System Regulations
+                Aligned with the Proceeds of Crime and Anti-Money Laundering Act (POCAMLA) of Kenya
               </p>
             </div>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                1. Prohibited Activities
+                1. What Is Not Allowed on SplitPesa
               </h3>
               <p>
-                Users are strictly prohibited from using SplitPesa to facilitate unlawful transactions, including:
+                To keep everyone safe, you may not use SplitPesa for:
               </p>
-              <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
+              <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-700 pl-2">
                 <li>
-                  <strong>STK Push Bombing / Harassment:</strong> Repeatedly triggering unsolicited M-Pesa PIN prompts to disrupt a mobile user’s device.
+                  <strong>Spamming Payment Prompts:</strong> Repeatedly sending unwanted M-Pesa prompts to someone’s phone.
                 </li>
                 <li>
-                  <strong>Phishing or Social Engineering:</strong> Naming bills deceptively (e.g., impersonating a utility provider, bank, or government agency) to trick recipients into entering their M-Pesa PIN.
+                  <strong>Misleading Bill Names:</strong> Naming a bill to impersonate a bank, utility company, or government office to trick someone into paying.
                 </li>
                 <li>
-                  <strong>Structuring / Smurfing:</strong> Splitting unlawful proceeds into smaller M-Pesa transactions to evade reporting thresholds under POCAMLA.
+                  <strong>Unlawful Activity:</strong> Collecting money for illegal goods, scams, or unauthorized fundraising.
                 </li>
               </ul>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                2. Technical Enforcement Controls Active on This Platform
+                2. Built-In Protections
               </h3>
               <p>
-                To enforce this policy automatically, SplitPesa implements:
+                SplitPesa automatically prevents listing the same phone number twice on the same bill, blocks rapid-fire spam requests, and ensures every bill share adds up accurately before any request is sent.
               </p>
-              <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
-                <li>
-                  <strong>Sliding-Window Rate Limiting:</strong> Maximum 25 split-bill dispatches per minute per IP address (`HTTP 429 Too Many Requests`).
-                </li>
-                <li>
-                  <strong>Duplicate MSISDN Blocking:</strong> A single split bill cannot contain the same phone number more than once.
-                </li>
-                <li>
-                  <strong>Immutable SHA-256 Audit Chaining:</strong> Every bill creation, retry, and callback event is recorded in a hash-chained audit log (`prevHash → hash`).
-                </li>
-              </ul>
             </section>
           </div>
         )}
@@ -344,35 +319,35 @@ export const LegalPoliciesCenter: React.FC<LegalPoliciesProps> = ({
           <div className="space-y-6">
             <div className="pb-4 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900">
-                Payment Processing, Disputes & M-Pesa Reversal Policy
+                Refunds, Disputes & M-Pesa Reversal Policy
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Procedures for Duplicate Payments, Erroneous Prompts, and Reversals
+                How Accidental Payments and Reversals Work
               </p>
             </div>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                1. Prevention of Accidental Duplicate Charges
+                1. Protection Against Double Charges
               </h3>
               <p>
-                Every split bill submission attaches a cryptographic `X-Idempotency-Key` header. If a user’s mobile connection drops and their browser resends the request, our server returns the existing bill record without initiating a second STK Push.
+                If your internet connection blinks and you accidentally tap &ldquo;Send M-Pesa Requests&rdquo; twice for the same bill, SplitPesa automatically recognizes the duplicate click and will not send a second charge to your friends.
               </p>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-base font-bold text-slate-900">
-                2. How M-Pesa Reversals Are Handled
+                2. How to Request an M-Pesa Reversal
               </h3>
               <p>
-                Because payments triggered via `CustomerPayBillOnline` settle directly into the designated Safaricom PayBill or BuyGoods Till shortcode:
+                Because M-Pesa payments go directly to the organizer’s or restaurant’s PayBill / BuyGoods Till account:
               </p>
-              <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
+              <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-700 pl-2">
                 <li>
-                  Participants should retain their 10-character M-Pesa Receipt Code (e.g., `SJK94M2QW1`), which is displayed on both their Safaricom SMS confirmation and the SplitPesa Payment Voucher.
+                  Always keep your 10-character M-Pesa receipt code (such as <code>SJK94M2QW1</code>), which appears in your M-Pesa SMS and on your SplitPesa receipt.
                 </li>
                 <li>
-                  Reversal requests for erroneous payments must be initiated by the Merchant Shortcode Administrator via the Safaricom M-Pesa Org Portal or the Daraja Transaction Reversal API (`/mpesa/reversal/v1/request`), or by the customer forwarding the M-Pesa confirmation SMS to <strong>456</strong> (Safaricom Official Reversal Line).
+                  Contact the bill organizer or business directly with your receipt code for an immediate refund, or forward the M-Pesa confirmation SMS to <strong>456</strong> (Safaricom’s official M-Pesa reversal service).
                 </li>
               </ul>
             </section>
@@ -417,20 +392,20 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
   return (
     <div
       role="region"
-      aria-label="Cookie and Data Privacy Notice"
+      aria-label="Privacy Notice"
       className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 px-6 py-3.5 shadow-lg"
     >
       <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-600">
         <div className="flex items-start sm:items-center gap-2.5">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
           <p>
-            <strong>Privacy & Essential Storage Notice:</strong> SplitPesa uses strictly necessary browser storage (`localStorage` & PWA cache) for authentication and idempotency security. We use zero third-party advertising trackers and never collect your M-Pesa PIN.{' '}
+            <strong>Your Privacy Matters:</strong> SplitPesa uses essential browser storage only to keep you signed in and prevent duplicate charges. We never use advertising trackers and never ask for your M-Pesa PIN.{' '}
             <button
               type="button"
               onClick={() => onOpenPolicies('privacy')}
               className="font-semibold text-slate-900 underline hover:text-emerald-700 cursor-pointer"
             >
-              Privacy Policy (KDPA 2019)
+              Privacy Policy
             </button>{' '}
             ·{' '}
             <button
@@ -438,7 +413,7 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
               onClick={() => onOpenPolicies('cookies')}
               className="font-semibold text-slate-900 underline hover:text-emerald-700 cursor-pointer"
             >
-              Cookie Policy
+              Cookie Notice
             </button>{' '}
             ·{' '}
             <button
@@ -458,7 +433,7 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
             className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Acknowledge & Continue</span>
+            <span>Got It</span>
           </button>
         </div>
       </div>

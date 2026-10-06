@@ -4,7 +4,14 @@ import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import App from './App.js';
 
-registerSW({ immediate: true });
+if (import.meta.env.PROD) {
+  registerSW({
+    immediate: true,
+    onRegisterError() {
+      // Fail silently if service workers are restricted by browser settings
+    },
+  });
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

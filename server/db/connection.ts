@@ -1,9 +1,14 @@
+import fs from 'fs';
+import path from 'path';
 import mysql from 'mysql2/promise';
 import type { Bill, AuditLogEntry, User, Contact, ContactGroup } from '../../src/types.js';
 import { computeSha256, computeHmacSignature, hashPassword } from '../services/security.js';
 
 let pool: mysql.Pool | null = null;
 let mysqlConnected = false;
+
+const DATA_DIR = path.resolve(process.cwd(), '.data');
+const LOCAL_STORE_FILE = path.join(DATA_DIR, 'splitpesa-store.json');
 
 async function initMysqlSchema(activePool: mysql.Pool): Promise<void> {
   try {
@@ -35,23 +40,18 @@ async function initMysqlSchema(activePool: mysql.Pool): Promise<void> {
       );
     `);
     await activePool.query(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
+      CREATE TABLE IF NOT EXISTS contacts (
         id VARCHAR(32) PRIMARY KEY,
-        timestamp VARCHAR(40) NOT NULL,
-        event VARCHAR(60) NOT NULL,
-        bill_id VARCHAR(32) NOT NULL,
-        actor VARCHAR(80) NOT NULL,
-        details TEXT NOT NULL,
-        prev_hash VARCHAR(64) NOT NULL,
-        hash VARCHAR(64) NOT NULL,
-        severity VARCHAR(20) NOT NULL
+        name VARCHAR(80) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        tag VARCHAR(40) NOT NULL
       );
     `);
     mysqlConnected = true;
-    console.log('✅ MySQL schema verified and ready');
+    console.log('✅ Connected to external MySQL database');
   } catch (err) {
     mysqlConnected = false;
-    console.warn('MySQL schema check skipped (using in-memory store):', (err as Error).message);
+    console.warn('ℹ️ External MySQL not reachable, using local persistent store:', (err as Error).message);
   }
 }
 
@@ -66,10 +66,10 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     });
     void initMysqlSchema(pool);
-  } catch (err) {
-    console.warn('MySQL pool creation failed, falling back to in-memory store:', err);
+  } catch {
     pool = null;
   }
 }
@@ -85,6 +85,52 @@ const memoryBills = new Map<string, Bill>();
 const memoryContacts = new Map<string, Contact>();
 const memoryGroups = new Map<string, ContactGroup>();
 const auditLogs: AuditLogEntry[] = [];
+
+function persistLocalStore(): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const payload = {
+      users: Array.from(memoryUsers.values()),
+      bills: Array.from(memoryBills.values()),
+      contacts: Array.from(memoryContacts.values()),
+      groups: Array.from(memoryGroups.values()),
+    };
+    fs.writeFileSync(LOCAL_STORE_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch {
+    // Ignore file write errors in read-only environments
+  }
+}
+
+function loadLocalStore(): boolean {
+  try {
+    if (!fs.existsSync(LOCAL_STORE_FILE)) return false;
+    const raw = fs.readFileSync(LOCAL_STORE_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as {
+      users?: StoredUser[];
+      bills?: Bill[];
+      contacts?: Contact[];
+      groups?: ContactGroup[];
+    };
+    if (!parsed.bills || parsed.bills.length === 0) return false;
+    for (const u of parsed.users || []) {
+      memoryUsers.set(u.email.toLowerCase(), u);
+    }
+    for (const b of parsed.bills || []) {
+      memoryBills.set(b.id, b);
+    }
+    for (const c of parsed.contacts || []) {
+      memoryContacts.set(c.id, c);
+    }
+    for (const g of parsed.groups || []) {
+      memoryGroups.set(g.id, g);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const appendAuditLog = (params: {
   event: string;
@@ -116,6 +162,7 @@ export const appendAuditLog = (params: {
 };
 
 function seedInitialData(): void {
+  if (loadLocalStore()) return;
   if (memoryBills.size > 0) return;
 
   const now = Date.now();
@@ -123,7 +170,7 @@ function seedInitialData(): void {
   const t2 = new Date(now - 18 * 60 * 1000).toISOString();
   const t3 = new Date(now - 6 * 60 * 1000).toISOString();
 
-  // Seed default organizer account: amina@splitpesa.co.ke / SplitPesa2026!
+  // Default demo account: amina@splitpesa.co.ke / SplitPesa2026!
   const demoUser: StoredUser = {
     id: 'USR-1001',
     name: 'Amina Wanjiku',
@@ -135,7 +182,6 @@ function seedInitialData(): void {
   };
   memoryUsers.set(demoUser.email.toLowerCase(), demoUser);
 
-  // Seed saved contacts
   const initialContacts: Contact[] = [
     { id: 'CNT-01', name: 'Brian Ochieng', phone: '254722987654', tag: 'Colleague' },
     { id: 'CNT-02', name: 'Cynthia Muthoni', phone: '254733456123', tag: 'Colleague' },
@@ -148,12 +194,11 @@ function seedInitialData(): void {
     memoryContacts.set(c.id, c);
   }
 
-  // Seed contact groups
   const initialGroups: ContactGroup[] = [
     {
       id: 'GRP-01',
       name: 'Kilimani Lunch Crew',
-      description: 'Daily office lunch split group (3 members)',
+      description: 'Daily office lunch group (3 friends)',
       members: [
         { name: 'Amina Wanjiku', phone: '254712345678' },
         { name: 'Brian Ochieng', phone: '254722987654' },
@@ -163,7 +208,7 @@ function seedInitialData(): void {
     {
       id: 'GRP-02',
       name: 'Apartment 4B Utilities',
-      description: 'Monthly fiber internet, water, and electricity split (3 members)',
+      description: 'Monthly internet, water, and electricity split (3 housemates)',
       members: [
         { name: 'David Kamau', phone: '254701234567' },
         { name: 'Faith Njeri', phone: '254745678901' },
@@ -322,7 +367,7 @@ function seedInitialData(): void {
         merchantRequestId: 'MR-3190-77C2',
         attempts: 1,
         updatedAt: t3,
-        failureReason: 'Request cancelled by user (Daraja ResultCode 1032)',
+        failureReason: 'Payment prompt was cancelled on phone',
       },
     ],
   };
@@ -330,52 +375,7 @@ function seedInitialData(): void {
   memoryBills.set(bill1.id, bill1);
   memoryBills.set(bill2.id, bill2);
   memoryBills.set(bill3.id, bill3);
-
-  appendAuditLog({
-    event: 'BILL_CREATED',
-    billId: 'SP8492',
-    actor: 'Amina Wanjiku',
-    details:
-      'Created equal split bill for KES 4,500.00 across 3 participants (Idempotency: idem_sp8492_kilimani)',
-    severity: 'info',
-    timestamp: t1,
-  });
-  appendAuditLog({
-    event: 'CALLBACK_VERIFIED',
-    billId: 'SP8492',
-    actor: 'Safaricom Daraja Webhook',
-    details:
-      'All 3 STK Push payments settled (Receipts: SJK94M2QW1, SJK71L8KP4, SJK39V5NX8). Total collected: KES 4,500.00',
-    severity: 'success',
-    timestamp: t1,
-  });
-  appendAuditLog({
-    event: 'BILL_CREATED',
-    billId: 'SP9104',
-    actor: 'Amina Wanjiku',
-    details:
-      'Created equal split bill for KES 3,600.00 across 3 participants (Idempotency: idem_sp9104_westlands)',
-    severity: 'info',
-    timestamp: t2,
-  });
-  appendAuditLog({
-    event: 'CALLBACK_VERIFIED',
-    billId: 'SP9104',
-    actor: 'Safaricom Daraja Webhook',
-    details:
-      'Settled KES 2,400.00 (2/3 participants). Awaiting STK PIN from +254798765432.',
-    severity: 'success',
-    timestamp: t2,
-  });
-  appendAuditLog({
-    event: 'PAYMENT_FAILED',
-    billId: 'SP9377',
-    actor: 'Safaricom Daraja Webhook',
-    details:
-      'STK Push declined/cancelled for +254728765432 (ResultCode 1032: Request cancelled by user). Eligible for retry.',
-    severity: 'warning',
-    timestamp: t3,
-  });
+  persistLocalStore();
 }
 
 seedInitialData();
@@ -392,6 +392,25 @@ export const userStore = {
   },
   create(user: StoredUser): StoredUser {
     memoryUsers.set(user.email.trim().toLowerCase(), user);
+    persistLocalStore();
+    if (pool && mysqlConnected) {
+      pool
+        .query(
+          `INSERT INTO users (id, name, email, phone, account_type, password_hash, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name = VALUES(name), phone = VALUES(phone)`,
+          [
+            user.id,
+            user.name,
+            user.email,
+            user.phone,
+            user.accountType,
+            user.passwordHash,
+            user.createdAt,
+          ]
+        )
+        .catch(() => {});
+    }
     return user;
   },
   toPublicUser(user: StoredUser): User {
@@ -406,10 +425,25 @@ export const contactStore = {
   },
   addContact(contact: Contact): Contact {
     memoryContacts.set(contact.id, contact);
+    persistLocalStore();
+    if (pool && mysqlConnected) {
+      pool
+        .query(
+          `INSERT INTO contacts (id, name, phone, tag) VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name = VALUES(name), phone = VALUES(phone), tag = VALUES(tag)`,
+          [contact.id, contact.name, contact.phone, contact.tag]
+        )
+        .catch(() => {});
+    }
     return contact;
   },
   deleteContact(id: string): boolean {
-    return memoryContacts.delete(id);
+    const deleted = memoryContacts.delete(id);
+    persistLocalStore();
+    if (pool && mysqlConnected) {
+      pool.query(`DELETE FROM contacts WHERE id = ?`, [id]).catch(() => {});
+    }
+    return deleted;
   },
   listGroups(): ContactGroup[] {
     return Array.from(memoryGroups.values());
@@ -430,6 +464,7 @@ export const billStore = {
   async save(bill: Bill): Promise<Bill> {
     bill.updatedAt = new Date().toISOString();
     memoryBills.set(bill.id, bill);
+    persistLocalStore();
     if (pool && mysqlConnected) {
       try {
         await pool.query(
@@ -453,8 +488,8 @@ export const billStore = {
             bill.updatedAt,
           ]
         );
-      } catch (err) {
-        console.warn('MySQL bill sync error:', (err as Error).message);
+      } catch {
+        // Fallback already saved to local store
       }
     }
     return bill;

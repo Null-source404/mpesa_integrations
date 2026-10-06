@@ -106,16 +106,17 @@ interface RateBucket {
 const ipRateLimits = new Map<string, RateBucket>();
 
 export const securityHeadersMiddleware = (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ): void => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-XSS-Protection', '0');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  if (req.path.startsWith('/api')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
   next();
 };
 
@@ -141,7 +142,7 @@ export const apiRateLimiter = (maxRequests = 60, windowMs = 60_000) => {
 
     if (bucket.count > maxRequests) {
       res.status(429).json({
-        message: 'Too many payment requests from this IP. Please wait before retrying.',
+        message: 'You are making requests too quickly. Please wait a moment and try again.',
       });
       return;
     }

@@ -13,7 +13,6 @@ import {
   AlertCircle,
   RotateCcw,
   FileText,
-  Lock,
   Copy,
   Check,
   X,
@@ -22,18 +21,16 @@ import {
   Receipt,
   ListOrdered,
   Users,
-  Scale,
   LogOut,
   Globe,
   UserPlus,
+  Printer,
 } from 'lucide-react';
 import type {
   Bill,
   ParticipantInput,
   PaymentStatus,
   SplitMode,
-  AuditLogEntry,
-  SecurityMetrics,
   SplitBillResponse,
   User,
   Contact,
@@ -58,7 +55,6 @@ const formatTime = (iso: string): string => {
     return new Date(iso).toLocaleTimeString('en-KE', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
     });
   } catch {
     return iso;
@@ -91,13 +87,7 @@ const generateIdempotencyKey = (): string => {
 };
 
 type SiteRoute = PublicPage | 'portal';
-type PortalSection =
-  | 'overview'
-  | 'new-split'
-  | 'bills'
-  | 'transactions'
-  | 'contacts'
-  | 'security';
+type PortalSection = 'overview' | 'new-split' | 'bills' | 'transactions' | 'contacts';
 type BillFilter = 'all' | 'settled' | 'pending' | 'attention';
 
 const getBillSettlementState = (bill: Bill): 'settled' | 'pending' | 'attention' => {
@@ -109,7 +99,6 @@ const getBillSettlementState = (bill: Bill): 'settled' | 'pending' | 'attention'
 };
 
 export default function App() {
-  // Multi-page Website vs Authenticated Portal Route
   const [siteRoute, setSiteRoute] = useState<SiteRoute>('home');
   const [policySection, setPolicySection] = useState<PolicySection>('privacy');
   const [portalSection, setPortalSection] = useState<PortalSection>('overview');
@@ -133,18 +122,10 @@ export default function App() {
 
   // Application Data State
   const [bills, setBills] = useState<Bill[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<ContactGroup[]>([]);
-  const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics>({
-    idempotencyKeysActive: 0,
-    callbacksVerified: 0,
-    replayAttacksBlocked: 0,
-    rateLimitRequestsTracked: 0,
-    tokenCacheValid: false,
-    hmacSigningActive: true,
-  });
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [actionError, setActionError] = useState<string>('');
 
   // Split Bill Composer State
   const [title, setTitle] = useState<string>('');
@@ -163,38 +144,30 @@ export default function App() {
   // New Contact Form State
   const [newContactName, setNewContactName] = useState<string>('');
   const [newContactPhone, setNewContactPhone] = useState<string>('');
-  const [newContactTag, setNewContactTag] = useState<string>('Colleague');
+  const [newContactTag, setNewContactTag] = useState<string>('Friend');
   const [contactError, setContactError] = useState<string>('');
 
-  // Ledger Search & Filtering
+  // Search & Filtering
   const [billFilter, setBillFilter] = useState<BillFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [busyBills, setBusyBills] = useState<Record<string, boolean>>({});
   const [selectedReceiptBill, setSelectedReceiptBill] = useState<Bill | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [securityBanner, setSecurityBanner] = useState<{
-    type: 'success' | 'warning' | 'info';
-    text: string;
-  } | null>(null);
 
   const fetchAllData = async () => {
     try {
       const res = await fetch(`${API}/bills`);
       if (!res.ok) return;
-      const data = (await res.json()) as {
+      const data = (await res.json().catch(() => ({}))) as {
         bills?: Bill[];
-        auditLogs?: AuditLogEntry[];
         contacts?: Contact[];
         groups?: ContactGroup[];
-        security?: SecurityMetrics;
       };
       if (Array.isArray(data.bills)) setBills(data.bills);
-      if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
       if (Array.isArray(data.contacts)) setContacts(data.contacts);
       if (Array.isArray(data.groups)) setGroups(data.groups);
-      if (data.security) setSecurityMetrics(data.security);
-    } catch (err) {
-      console.error('Failed to load ledger:', err);
+    } catch {
+      // Keep existing state if offline
     } finally {
       setInitialLoading(false);
     }
@@ -204,7 +177,6 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // Validate saved token on mount
   useEffect(() => {
     if (!authToken) return;
     fetch(`${API}/auth/me`, {
@@ -258,7 +230,7 @@ export default function App() {
     const baseParticipants: ParticipantInput[] = Array.from({ length: count }, (_, idx) => {
       const existing = contacts[idx];
       return {
-        name: existing ? existing.name : `Participant ${idx + 1}`,
+        name: existing ? existing.name : `Friend ${idx + 1}`,
         phone: existing ? existing.phone : `071234567${idx}`,
         amount: Number((calcTotal / count).toFixed(2)),
       };
@@ -267,7 +239,6 @@ export default function App() {
     setPortalSection('new-split');
   };
 
-  // Calculate Equal or Custom Split shares with exact integer-cent math
   const numericTotal = parseFloat(total) || 0;
   const computedShares = useMemo(() => {
     const count = draftParticipants.length || 1;
@@ -329,7 +300,7 @@ export default function App() {
   };
 
   const loadGroupIntoComposer = (group: ContactGroup) => {
-    setTitle(`${group.name} Split`);
+    setTitle(`${group.name}`);
     setSplitMode('equal');
     setDraftParticipants(
       group.members.map((m) => ({
@@ -347,32 +318,32 @@ export default function App() {
     setFormNotice('');
 
     if (!numericTotal || numericTotal < 1) {
-      setFormError('Enter a valid total bill amount of at least KES 1.00.');
+      setFormError('Please enter a total bill amount of at least KES 1.00.');
       return;
     }
 
     const activeParticipants = draftParticipants.map((p, idx) => ({
-      name: p.name.trim() || `Participant ${idx + 1}`,
+      name: p.name.trim() || `Person ${idx + 1}`,
       phone: p.phone.trim(),
       amount: computedShares[idx],
     }));
 
     if (activeParticipants.some((p) => !p.phone)) {
-      setFormError('Please provide an M-Pesa phone number for every participant.');
+      setFormError('Please enter an M-Pesa phone number for everyone on the bill.');
       return;
     }
 
     const invalidP = activeParticipants.find((p) => !isValidKenyanInput(p.phone));
     if (invalidP) {
       setFormError(
-        `Invalid Kenyan M-Pesa number "${invalidP.phone}" (${invalidP.name}). Use 07XXXXXXXX or 2547XXXXXXXX.`
+        `Please enter a valid Kenyan M-Pesa phone number for ${invalidP.name} (for example, 0712 345 678).`
       );
       return;
     }
 
     if (splitMode === 'custom' && Math.abs(unallocatedDiff) > 0.01) {
       setFormError(
-        `Custom amounts must equal KES ${fmt(numericTotal)}. Remaining difference: KES ${fmt(
+        `Individual shares must add up to KES ${fmt(numericTotal)}. Difference remaining: KES ${fmt(
           unallocatedDiff
         )}.`
       );
@@ -396,19 +367,27 @@ export default function App() {
         }),
       });
 
-      const data = (await res.json()) as SplitBillResponse & { message?: string };
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to dispatch M-Pesa STK Pushes.');
+      const data = (await res.json().catch(() => ({}))) as Partial<SplitBillResponse> & {
+        message?: string;
+      };
+      if (!res.ok || !data.bill) {
+        throw new Error(
+          data.message || 'We could not send the M-Pesa requests right now. Please try again.'
+        );
       }
 
       await fetchAllData();
       setFormNotice(
-        `Dispatched ${data.bill.participants.length} M-Pesa STK Push prompts for Bill #${data.bill.id}.`
+        `Sent M-Pesa payment prompts to ${data.bill.participants.length} people for "${data.bill.title}".`
       );
       setTitle('');
       setIdempotencyKey(generateIdempotencyKey());
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to process split request.');
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : 'We could not send the M-Pesa requests right now. Please check your connection.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -427,40 +406,52 @@ export default function App() {
           tag: newContactTag,
         }),
       });
-      const data = (await res.json()) as { contacts?: Contact[]; message?: string };
-      if (!res.ok) throw new Error(data.message || 'Failed to save contact');
+      const data = (await res.json().catch(() => ({}))) as {
+        contacts?: Contact[];
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.message || 'Could not save this contact. Please check the number.');
+      }
       if (data.contacts) setContacts(data.contacts);
       setNewContactName('');
       setNewContactPhone('');
     } catch (err) {
-      setContactError(err instanceof Error ? err.message : 'Failed to save contact');
+      setContactError(
+        err instanceof Error ? err.message : 'Could not save this contact right now.'
+      );
     }
   };
 
   const handleDeleteContact = async (id: string) => {
-    const res = await fetch(`${API}/contacts/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      const data = (await res.json()) as { contacts?: Contact[] };
-      if (data.contacts) setContacts(data.contacts);
+    try {
+      const res = await fetch(`${API}/contacts/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { contacts?: Contact[] };
+        if (data.contacts) setContacts(data.contacts);
+      }
+    } catch {
+      setActionError('We could not remove that contact right now. Please try again.');
     }
   };
 
   const handleRefreshBill = async (billId: string) => {
+    setActionError('');
     setBusyBills((prev) => ({ ...prev, [billId]: true }));
     try {
       const res = await fetch(`${API}/bill-status/${billId}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as {
+      if (!res.ok) {
+        throw new Error('Could not refresh bill status right now.');
+      }
+      const data = (await res.json().catch(() => ({}))) as {
         bill?: Bill;
-        auditLogs?: AuditLogEntry[];
-        security?: SecurityMetrics;
       };
       if (data.bill) {
         setBills((prev) => prev.map((b) => (b.id === billId ? data.bill! : b)));
         if (selectedReceiptBill?.id === billId) setSelectedReceiptBill(data.bill);
       }
-      if (data.auditLogs) setAuditLogs(data.auditLogs);
-      if (data.security) setSecurityMetrics(data.security);
+    } catch {
+      setActionError('We could not refresh the payment status right now. Please try again.');
     } finally {
       setBusyBills((prev) => ({ ...prev, [billId]: false }));
     }
@@ -471,6 +462,7 @@ export default function App() {
     phone: string,
     status: PaymentStatus
   ) => {
+    setActionError('');
     setBusyBills((prev) => ({ ...prev, [billId]: true }));
     try {
       const res = await fetch(`${API}/simulate-status/${billId}`, {
@@ -478,136 +470,58 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, status }),
       });
-      if (!res.ok) return;
-      const data = (await res.json()) as {
+      if (!res.ok) {
+        throw new Error('Could not update payment status right now.');
+      }
+      const data = (await res.json().catch(() => ({}))) as {
         bill?: Bill;
-        auditLogs?: AuditLogEntry[];
-        security?: SecurityMetrics;
       };
       if (data.bill) {
         setBills((prev) => prev.map((b) => (b.id === billId ? data.bill! : b)));
         if (selectedReceiptBill?.id === billId) setSelectedReceiptBill(data.bill);
       }
-      if (data.auditLogs) setAuditLogs(data.auditLogs);
-      if (data.security) setSecurityMetrics(data.security);
+    } catch {
+      setActionError('We could not update that payment right now. Please try again.');
     } finally {
       setBusyBills((prev) => ({ ...prev, [billId]: false }));
     }
   };
 
   const handleSettleAll = async (billId: string) => {
+    setActionError('');
     setBusyBills((prev) => ({ ...prev, [billId]: true }));
     try {
       const res = await fetch(`${API}/settle-all/${billId}`, {
         method: 'POST',
       });
-      if (!res.ok) return;
-      const data = (await res.json()) as {
+      if (!res.ok) {
+        throw new Error('Could not mark all payments as paid.');
+      }
+      const data = (await res.json().catch(() => ({}))) as {
         bill?: Bill;
-        auditLogs?: AuditLogEntry[];
-        security?: SecurityMetrics;
       };
       if (data.bill) {
         setBills((prev) => prev.map((b) => (b.id === billId ? data.bill! : b)));
         if (selectedReceiptBill?.id === billId) setSelectedReceiptBill(data.bill);
       }
-      if (data.auditLogs) setAuditLogs(data.auditLogs);
-      if (data.security) setSecurityMetrics(data.security);
+    } catch {
+      setActionError('We could not mark all shares as paid right now. Please try again.');
     } finally {
       setBusyBills((prev) => ({ ...prev, [billId]: false }));
     }
   };
 
-  const handleTestWebhookReplayGuard = async () => {
-    const sampleCheckoutId =
-      bills[0]?.participants[0]?.checkoutRequestId || 'ws_CO_20261006_254712345678';
-    const payload = {
-      Body: {
-        stkCallback: {
-          MerchantRequestID: 'MR-REPLAY-TEST',
-          CheckoutRequestID: sampleCheckoutId,
-          ResultCode: 0,
-          ResultDesc: 'The service request is processed successfully.',
-          CallbackMetadata: {
-            Item: [{ Name: 'MpesaReceiptNumber', Value: 'SJKREPLAY01' }],
-          },
-        },
-      },
-    };
-
-    await fetch(`${API}/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const secondRes = await fetch(`${API}/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    await fetchAllData();
-    if (secondRes.status === 409) {
-      setSecurityBanner({
-        type: 'success',
-        text: `Webhook Replay Guard verified: Duplicate callback for ${sampleCheckoutId} was rejected with HTTP 409 Conflict and logged in the SHA-256 audit chain.`,
-      });
-    }
-  };
-
-  const handleTestIdempotencyGuard = async () => {
-    const testKey = 'idem_verification_demo_key';
-    const testBody = {
-      title: 'Idempotency Verification Test',
-      category: 'General Expense',
-      total: 1000,
-      splitMode: 'equal',
-      participants: [
-        { name: 'Test User A', phone: '254711223344', amount: 500 },
-        { name: 'Test User B', phone: '254755667788', amount: 500 },
-      ],
-    };
-
-    await fetch(`${API}/split-bill`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': testKey,
-      },
-      body: JSON.stringify(testBody),
-    });
-
-    const replayRes = await fetch(`${API}/split-bill`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': testKey,
-      },
-      body: JSON.stringify(testBody),
-    });
-    const replayData = (await replayRes.json()) as SplitBillResponse;
-    await fetchAllData();
-
-    if (replayData.idempotentReplay) {
-      setSecurityBanner({
-        type: 'info',
-        text: `Idempotency Guard verified: Second request with key "${testKey}" returned the cached Bill #${replayData.billId} without dispatching duplicate M-Pesa STK Pushes.`,
-      });
-    }
-  };
-
   const exportLedgerCsv = () => {
     const headers = [
-      'Bill ID',
-      'Title',
+      'Bill Reference',
+      'Bill Description',
       'Category',
-      'Created At',
-      'Participant Name',
-      'Phone Number',
+      'Date Created',
+      'Person Name',
+      'M-Pesa Phone Number',
       'Share Amount (KES)',
-      'Status',
-      'M-Pesa Receipt',
-      'HMAC Signature',
+      'Payment Status',
+      'M-Pesa Receipt Code',
     ];
     const rows: string[][] = [];
     for (const bill of bills) {
@@ -621,8 +535,7 @@ export default function App() {
           p.phone,
           p.amount.toFixed(2),
           p.status.toUpperCase(),
-          p.receipt || 'PENDING',
-          bill.signatureHash,
+          p.receipt || 'WAITING',
         ]);
       }
     }
@@ -631,7 +544,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `splitpesa-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `splitpesa-payments-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -730,24 +643,21 @@ export default function App() {
     );
   }
 
-  // Render Authenticated Sidebar Portal Workspace
   const sectionLabels: Record<PortalSection, string> = {
-    overview: 'Executive Overview',
-    'new-split': 'Create Split Bill',
-    bills: 'Active Bills & Vouchers',
-    transactions: 'Transactions Ledger',
-    contacts: 'Contacts & Split Groups',
-    security: 'Reconciliation & Audit',
+    overview: 'Dashboard',
+    'new-split': 'Split a Bill',
+    bills: 'My Bills & Receipts',
+    transactions: 'Payment History',
+    contacts: 'Friends & Groups',
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col lg:flex-row">
       <OfflineIndicator />
 
-      {/* Left Sidebar Navigation (260px fixed width on desktop) */}
+      {/* Left Sidebar Navigation */}
       <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col justify-between shrink-0">
         <div>
-          {/* Brand Header */}
           <div className="h-16 px-6 border-b border-slate-200 flex items-center justify-between">
             <button
               type="button"
@@ -756,36 +666,30 @@ export default function App() {
             >
               SplitPesa
             </button>
-            <span className="text-[11px] font-mono text-emerald-700 font-semibold">
-              PORTAL
+            <span className="text-[11px] font-semibold text-emerald-700">
+              DASHBOARD
             </span>
           </div>
 
-          {/* Sidebar Nav Items */}
           <nav aria-label="Workspace Sidebar" className="p-3.5 space-y-1">
             {(
               [
-                { id: 'overview', label: 'Overview', Icon: LayoutDashboard },
-                { id: 'new-split', label: 'New Split Request', Icon: Plus },
+                { id: 'overview', label: 'Dashboard', Icon: LayoutDashboard },
+                { id: 'new-split', label: 'Split a Bill', Icon: Plus },
                 {
                   id: 'bills',
-                  label: `Bills & Vouchers (${bills.length})`,
+                  label: `My Bills & Receipts (${bills.length})`,
                   Icon: Receipt,
                 },
                 {
                   id: 'transactions',
-                  label: 'Transactions Ledger',
+                  label: 'Payment History',
                   Icon: ListOrdered,
                 },
                 {
                   id: 'contacts',
-                  label: `Contacts & Groups (${contacts.length})`,
+                  label: `Friends & Groups (${contacts.length})`,
                   Icon: Users,
-                },
-                {
-                  id: 'security',
-                  label: 'Reconciliation & Audit',
-                  Icon: Scale,
                 },
               ] as const
             ).map((item) => {
@@ -810,7 +714,6 @@ export default function App() {
           </nav>
         </div>
 
-        {/* Sidebar Footer: PWA Install, Website Switcher, Legal Links & User Account */}
         <div className="p-4 border-t border-slate-200 space-y-3">
           <PWAInstallButton variant="sidebar" />
 
@@ -820,7 +723,7 @@ export default function App() {
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <Globe className="w-3.5 h-3.5" />
-            <span>Public Website Pages</span>
+            <span>Back to Website</span>
           </button>
 
           <button
@@ -832,7 +735,7 @@ export default function App() {
             className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Privacy, Cookie & Legal Policies</span>
+            <span>Privacy & Legal Policies</span>
           </button>
 
           {currentUser ? (
@@ -860,7 +763,7 @@ export default function App() {
               onClick={() => setSiteRoute('login')}
               className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
             >
-              Sign In / Register
+              Sign In / Create Account
             </button>
           )}
         </div>
@@ -868,7 +771,7 @@ export default function App() {
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Contextual Header */}
+        {/* Top Header */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <button
@@ -892,7 +795,7 @@ export default function App() {
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
+              <span>Download CSV</span>
             </button>
             <button
               type="button"
@@ -900,24 +803,23 @@ export default function App() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Split Bill</span>
+              <span>Split a Bill</span>
             </button>
           </div>
         </header>
 
-        {/* Mobile Portal Navigation Strip (Visible on Android / iOS / Mobile screens) */}
+        {/* Mobile Navigation Strip */}
         <nav
-          aria-label="Mobile Portal Navigation"
+          aria-label="Mobile Navigation"
           className="lg:hidden bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-1.5 overflow-x-auto"
         >
           {(
             [
-              { id: 'overview', label: 'Overview' },
-              { id: 'new-split', label: 'New Split' },
-              { id: 'bills', label: `Bills (${bills.length})` },
-              { id: 'transactions', label: 'Ledger' },
-              { id: 'contacts', label: 'Contacts' },
-              { id: 'security', label: 'Security' },
+              { id: 'overview', label: 'Dashboard' },
+              { id: 'new-split', label: 'Split a Bill' },
+              { id: 'bills', label: `My Bills (${bills.length})` },
+              { id: 'transactions', label: 'Payments' },
+              { id: 'contacts', label: 'Friends' },
             ] as const
           ).map((item) => (
             <button
@@ -936,72 +838,89 @@ export default function App() {
         </nav>
 
         {/* Main Viewport Content */}
-        <main className="flex-1 p-8 max-w-[1200px] w-full mx-auto space-y-8">
-          {/* PORTAL SECTION 1: EXECUTIVE OVERVIEW */}
+        <main className="flex-1 p-6 sm:p-8 max-w-[1200px] w-full mx-auto space-y-8">
+          {actionError && (
+            <div
+              role="alert"
+              className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionError('')}
+                aria-label="Dismiss message"
+                className="text-rose-600 hover:text-rose-900 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* SECTION 1: DASHBOARD OVERVIEW */}
           {portalSection === 'overview' && (
             <div className="space-y-8">
-              {/* Top KPI Grid */}
               <section className="bg-white border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                 <div className="p-5">
                   <div className="text-xs font-medium text-slate-500">
-                    Gross Split Volume
+                    Total Bills Split
                   </div>
                   <div className="mt-1.5 text-2xl font-bold text-slate-900 font-mono tabular-nums">
                     KES {fmt(financialSummary.grossVolume)}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Across {bills.length} active bills
+                    Across {bills.length} shared bills
                   </div>
                 </div>
 
                 <div className="p-5">
                   <div className="text-xs font-medium text-slate-500">
-                    Verified M-Pesa Collections
+                    Collected via M-Pesa
                   </div>
                   <div className="mt-1.5 text-2xl font-bold text-emerald-700 font-mono tabular-nums">
                     KES {fmt(financialSummary.settledVolume)}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    {financialSummary.settledPrompts} of {financialSummary.totalPrompts} prompts
-                    settled ({financialSummary.settlementRate}%)
+                    {financialSummary.settledPrompts} of {financialSummary.totalPrompts} people paid ({financialSummary.settlementRate}%)
                   </div>
                 </div>
 
                 <div className="p-5">
                   <div className="text-xs font-medium text-slate-500">
-                    Pending STK Prompts
+                    Waiting for Payment
                   </div>
                   <div className="mt-1.5 text-2xl font-bold text-amber-700 font-mono tabular-nums">
                     KES {fmt(financialSummary.pendingVolume)}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Awaiting participant PIN entry
+                    Waiting for friends to enter PIN
                   </div>
                 </div>
 
                 <div className="p-5">
                   <div className="text-xs font-medium text-slate-500">
-                    Declined / Action Needed
+                    Cancelled / Needs Resend
                   </div>
                   <div className="mt-1.5 text-2xl font-bold text-rose-700 font-mono tabular-nums">
                     KES {fmt(financialSummary.failedVolume)}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Eligible for 1-click STK retry
+                    Can be resent in one click
                   </div>
                 </div>
               </section>
 
-              {/* Quick Launch Split Groups + Recent Bills */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 <section className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
                   <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                     <div>
                       <h2 className="text-sm font-bold text-slate-900">
-                        Recent Split Bills
+                        Recent Shared Bills
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Click any bill to inspect receipts or trigger STK callbacks
+                        Select any bill to see receipts or resend a payment prompt
                       </p>
                     </div>
                     <button
@@ -1009,7 +928,7 @@ export default function App() {
                       onClick={() => setPortalSection('bills')}
                       className="text-xs font-semibold text-emerald-700 hover:underline cursor-pointer"
                     >
-                      View All Bills ({bills.length})
+                      See All ({bills.length})
                     </button>
                   </div>
 
@@ -1030,8 +949,8 @@ export default function App() {
                             <div className="text-sm font-bold text-slate-900">
                               {bill.title}
                             </div>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">
-                              Ref #{bill.id} · {bill.participants.length} people ·{' '}
+                            <div className="text-xs text-slate-500 mt-0.5">
+                              Bill #{bill.id} · {bill.participants.length} people ·{' '}
                               {bill.category}
                             </div>
                           </div>
@@ -1042,17 +961,15 @@ export default function App() {
                                 KES {fmt(bill.total)}
                               </div>
                               <div className="text-xs text-emerald-700 font-semibold">
-                                {pct}% settled
+                                {pct}% paid
                               </div>
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                setPortalSection('bills');
-                              }}
+                              onClick={() => setPortalSection('bills')}
                               className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
                             >
-                              Manage
+                              View Bill
                             </button>
                           </div>
                         </div>
@@ -1061,15 +978,15 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* Saved Groups Quick Dispatch */}
+                {/* Saved Groups Quick Split */}
                 <section className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                     <div>
                       <h2 className="text-sm font-bold text-slate-900">
-                        Quick-Split Saved Groups
+                        Saved Friend Groups
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Pre-fill participant M-Pesa numbers in one click
+                        Fill everyone’s phone number in one tap
                       </p>
                     </div>
                     <button
@@ -1077,7 +994,7 @@ export default function App() {
                       onClick={() => setPortalSection('contacts')}
                       className="text-xs font-semibold text-emerald-700 hover:underline cursor-pointer"
                     >
-                      Manage Contacts
+                      Manage Friends
                     </button>
                   </div>
 
@@ -1100,7 +1017,7 @@ export default function App() {
                           onClick={() => loadGroupIntoComposer(grp)}
                           className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg whitespace-nowrap cursor-pointer"
                         >
-                          Use Group
+                          Split with Group
                         </button>
                       </div>
                     ))}
@@ -1110,16 +1027,16 @@ export default function App() {
             </div>
           )}
 
-          {/* PORTAL SECTION 2: DEDICATED NEW SPLIT REQUEST COMPOSER */}
+          {/* SECTION 2: SPLIT A BILL */}
           {portalSection === 'new-split' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <section className="lg:col-span-8 bg-white border border-slate-200 rounded-xl p-6">
                 <div className="pb-4 mb-6 border-b border-slate-200">
                   <h1 className="text-xl font-bold text-slate-900">
-                    Dispatch New M-Pesa Split Request
+                    Split a Shared Bill
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    Configure equal or itemized custom shares and dispatch Daraja STK Push prompts.
+                    Enter the total bill and choose your friends to send M-Pesa payment requests to their phones.
                   </p>
                 </div>
 
@@ -1130,7 +1047,7 @@ export default function App() {
                         htmlFor="bill-title-input"
                         className="block text-xs font-semibold text-slate-700 mb-1.5"
                       >
-                        Bill Description
+                        What is this bill for?
                       </label>
                       <input
                         id="bill-title-input"
@@ -1147,7 +1064,7 @@ export default function App() {
                         htmlFor="bill-category-select"
                         className="block text-xs font-semibold text-slate-700 mb-1.5"
                       >
-                        Expense Category
+                        Category
                       </label>
                       <select
                         id="bill-category-select"
@@ -1164,7 +1081,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Total Amount & Split Mode */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label
@@ -1192,7 +1108,7 @@ export default function App() {
 
                     <div>
                       <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Split Allocation Method
+                        How should we divide it?
                       </span>
                       <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200">
                         <button
@@ -1204,7 +1120,7 @@ export default function App() {
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
-                          Equal Split
+                          Split Equally
                         </button>
                         <button
                           type="button"
@@ -1215,20 +1131,20 @@ export default function App() {
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
-                          Custom Shares
+                          Custom Amounts
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Participants Rows */}
+                  {/* People Sharing Rows */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-slate-700">
-                        Participants ({draftParticipants.length})
+                        People Sharing This Bill ({draftParticipants.length})
                       </span>
                       <span className="text-xs font-mono text-slate-500">
-                        Allocated: KES {fmt(allocatedTotal)} / KES {fmt(numericTotal)}
+                        Total Assigned: KES {fmt(allocatedTotal)} of KES {fmt(numericTotal)}
                       </span>
                     </div>
 
@@ -1241,24 +1157,24 @@ export default function App() {
                           <div className="sm:col-span-4">
                             <input
                               type="text"
-                              aria-label={`Participant ${idx + 1} Name`}
+                              aria-label={`Person ${idx + 1} Name`}
                               value={p.name}
                               onChange={(e) =>
                                 updateParticipant(idx, 'name', e.target.value)
                               }
-                              placeholder="Participant name"
+                              placeholder="Friend's name"
                               className="w-full rounded-md bg-white border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
                             />
                           </div>
                           <div className="sm:col-span-4">
                             <input
                               type="tel"
-                              aria-label={`Participant ${idx + 1} Phone`}
+                              aria-label={`Person ${idx + 1} M-Pesa Phone`}
                               value={p.phone}
                               onChange={(e) =>
                                 updateParticipant(idx, 'phone', e.target.value)
                               }
-                              placeholder="0712345678"
+                              placeholder="0712 345 678"
                               className="w-full rounded-md bg-white border border-slate-300 px-2.5 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-600"
                             />
                           </div>
@@ -1266,7 +1182,7 @@ export default function App() {
                             <input
                               type="number"
                               step="any"
-                              aria-label={`Participant ${idx + 1} Share`}
+                              aria-label={`Person ${idx + 1} Share Amount`}
                               disabled={splitMode === 'equal'}
                               value={
                                 splitMode === 'equal'
@@ -1288,7 +1204,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => removeParticipant(idx)}
-                                aria-label={`Remove participant ${idx + 1}`}
+                                aria-label={`Remove person ${idx + 1}`}
                                 className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1305,7 +1221,7 @@ export default function App() {
                       className="w-full mt-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-dashed border-slate-300 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Add Participant Row</span>
+                      <span>Add Another Person</span>
                     </button>
                   </div>
 
@@ -1338,10 +1254,10 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="pt-2 flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
-                      <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Idempotency Key: {idempotencyKey}</span>
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-4">
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Protected against accidental double charges</span>
                     </span>
                     <button
                       type="submit"
@@ -1351,22 +1267,22 @@ export default function App() {
                       <Send className="w-3.5 h-3.5" />
                       <span>
                         {submitting
-                          ? 'Dispatching...'
-                          : `Dispatch STK Pushes (KES ${fmt(numericTotal)})`}
+                          ? 'Sending Requests...'
+                          : `Send M-Pesa Requests (KES ${fmt(numericTotal)})`}
                       </span>
                     </button>
                   </div>
                 </form>
               </section>
 
-              {/* Right 4 Columns: Saved Contacts Quick-Picker */}
+              {/* Right Column: Saved Friends Picker */}
               <section className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-6 space-y-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">
-                    Add from Saved Contacts
+                    Quick-Add Saved Friends
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Click a saved M-Pesa contact to append them to this bill.
+                    Tap a friend below to add them to this bill.
                   </p>
                 </div>
 
@@ -1398,17 +1314,17 @@ export default function App() {
             </div>
           )}
 
-          {/* PORTAL SECTION 3: ACTIVE BILLS & VOUCHERS */}
+          {/* SECTION 3: MY BILLS & RECEIPTS */}
           {portalSection === 'bills' && (
             <section className="space-y-4">
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200 overflow-x-auto">
                   {(
                     [
                       { id: 'all', label: 'All Bills' },
-                      { id: 'pending', label: 'Awaiting PIN' },
-                      { id: 'settled', label: 'Settled' },
-                      { id: 'attention', label: 'Failed / Retry' },
+                      { id: 'pending', label: 'Waiting for Payment' },
+                      { id: 'settled', label: 'Fully Paid' },
+                      { id: 'attention', label: 'Cancelled / Resend' },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -1432,8 +1348,8 @@ export default function App() {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search bill, phone, receipt..."
-                    aria-label="Search bills, phones, or M-Pesa receipts"
+                    placeholder="Search bill, friend, receipt..."
+                    aria-label="Search bills, friends, or M-Pesa receipts"
                     className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-600"
                   />
                 </div>
@@ -1448,8 +1364,11 @@ export default function App() {
                 <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
                   <FileText className="w-8 h-8 text-slate-400 mx-auto mb-3" />
                   <h2 className="text-sm font-bold text-slate-900">
-                    No matching M-Pesa split bills
+                    No matching bills found
                   </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Try clearing your search filter or split a new bill with your friends.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1478,15 +1397,15 @@ export default function App() {
                             <h3 className="text-base font-bold text-slate-900">
                               {bill.title}
                             </h3>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 font-mono">
-                              <span>Ref #{bill.id}</span>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                              <span className="font-mono">Bill #{bill.id}</span>
                               <span>·</span>
-                              <span className="font-sans">{bill.category}</span>
+                              <span>{bill.category}</span>
                               <span>·</span>
                               <span>
                                 {bill.splitMode === 'equal'
                                   ? 'Equal Split'
-                                  : 'Custom Split'}
+                                  : 'Custom Amounts'}
                               </span>
                               <span>·</span>
                               <span>{formatTime(bill.createdAt)}</span>
@@ -1514,7 +1433,7 @@ export default function App() {
                               </span>
                             </span>
                             <span className="font-mono font-semibold text-slate-900 tabular-nums">
-                              {paidParticipants.length}/{bill.participants.length} settled (
+                              {paidParticipants.length} of {bill.participants.length} paid (
                               {pct}%)
                             </span>
                           </div>
@@ -1545,7 +1464,7 @@ export default function App() {
                                       onClick={() => copyText(p.receipt!, p.receipt!)}
                                       className="inline-flex items-center gap-1 text-emerald-700 font-semibold hover:underline cursor-pointer"
                                     >
-                                      <span>Receipt: {p.receipt}</span>
+                                      <span>M-Pesa Receipt: {p.receipt}</span>
                                       {copiedId === p.receipt ? (
                                         <Check className="w-3 h-3" />
                                       ) : (
@@ -1554,10 +1473,12 @@ export default function App() {
                                     </button>
                                   ) : p.failureReason ? (
                                     <span className="text-rose-600 font-sans">
-                                      {p.failureReason}
+                                      Prompt cancelled on phone
                                     </span>
                                   ) : (
-                                    <span>STK Attempt #{p.attempts || 1} dispatched</span>
+                                    <span className="font-sans">
+                                      M-Pesa prompt sent to phone
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -1577,13 +1498,13 @@ export default function App() {
                                     {p.status === 'pending' && (
                                       <span className="inline-flex items-center gap-1 text-amber-700">
                                         <Clock className="w-3.5 h-3.5" />
-                                        <span>Awaiting PIN</span>
+                                        <span>Waiting for PIN</span>
                                       </span>
                                     )}
                                     {p.status === 'failed' && (
                                       <span className="inline-flex items-center gap-1 text-rose-700">
                                         <XCircle className="w-3.5 h-3.5" />
-                                        <span>Failed</span>
+                                        <span>Cancelled</span>
                                       </span>
                                     )}
                                   </div>
@@ -1599,7 +1520,7 @@ export default function App() {
                                       }
                                       className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md cursor-pointer"
                                     >
-                                      Confirm PIN
+                                      Mark Paid
                                     </button>
                                   )}
                                   {p.status === 'pending' && (
@@ -1615,7 +1536,7 @@ export default function App() {
                                       }
                                       className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md cursor-pointer"
                                     >
-                                      Decline
+                                      Cancel
                                     </button>
                                   )}
                                   {p.status === 'failed' && (
@@ -1632,7 +1553,7 @@ export default function App() {
                                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md cursor-pointer"
                                     >
                                       <RotateCcw className="w-3 h-3" />
-                                      <span>Retry STK</span>
+                                      <span>Resend Prompt</span>
                                     </button>
                                   )}
                                 </div>
@@ -1642,8 +1563,10 @@ export default function App() {
                         </div>
 
                         <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-[11px] font-mono text-slate-500">
-                            HMAC: {bill.signatureHash}
+                          <div className="text-[11px] text-slate-500">
+                            {pct === 100
+                              ? 'All shares paid and verified'
+                              : 'Waiting for remaining M-Pesa payments'}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -1653,7 +1576,7 @@ export default function App() {
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" />
-                              <span>Official Receipt</span>
+                              <span>View Receipt</span>
                             </button>
 
                             {hasUnpaid && (
@@ -1664,7 +1587,7 @@ export default function App() {
                                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg cursor-pointer"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Settle All</span>
+                                <span>Mark All Paid</span>
                               </button>
                             )}
 
@@ -1677,7 +1600,7 @@ export default function App() {
                               <RefreshCw
                                 className={`w-3.5 h-3.5 ${isBusy ? 'animate-spin' : ''}`}
                               />
-                              <span>{isBusy ? 'Querying...' : 'Query STK Status'}</span>
+                              <span>{isBusy ? 'Checking...' : 'Refresh Status'}</span>
                             </button>
                           </div>
                         </div>
@@ -1689,16 +1612,16 @@ export default function App() {
             </section>
           )}
 
-          {/* PORTAL SECTION 4: TRANSACTIONS LEDGER */}
+          {/* SECTION 4: PAYMENT HISTORY */}
           {portalSection === 'transactions' && (
             <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h1 className="text-base font-bold text-slate-900">
-                    M-Pesa STK Push Transactions Ledger
+                    M-Pesa Payment History
                   </h1>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Every participant payment prompt, CheckoutRequestID, and verified receipt number.
+                    Every individual share, phone number, and M-Pesa receipt code in one place.
                   </p>
                 </div>
                 <div className="relative">
@@ -1707,7 +1630,7 @@ export default function App() {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Filter by phone, name, receipt..."
+                    placeholder="Filter by name, phone, receipt..."
                     className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-600"
                   />
                 </div>
@@ -1717,29 +1640,28 @@ export default function App() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      <th className="py-3 px-4">Bill Ref</th>
-                      <th className="py-3 px-4">Participant</th>
-                      <th className="py-3 px-4">M-Pesa MSISDN</th>
-                      <th className="py-3 px-4">CheckoutRequestID</th>
+                      <th className="py-3 px-4">Bill</th>
+                      <th className="py-3 px-4">Person</th>
+                      <th className="py-3 px-4">M-Pesa Number</th>
                       <th className="py-3 px-4">M-Pesa Receipt</th>
                       <th className="py-3 px-4 text-right">Amount (KES)</th>
                       <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-xs">
                     {filteredBills.flatMap((bill) =>
                       bill.participants.map((p) => (
                         <tr key={`${bill.id}-${p.phone}`} className="hover:bg-slate-50">
-                          <td className="py-3 px-4 font-mono font-semibold text-slate-900">
-                            #{bill.id}
+                          <td className="py-3 px-4 font-semibold text-slate-900">
+                            <div>{bill.title}</div>
+                            <div className="text-[11px] font-mono text-slate-400">
+                              #{bill.id}
+                            </div>
                           </td>
                           <td className="py-3 px-4 font-medium text-slate-900">{p.name}</td>
                           <td className="py-3 px-4 font-mono tabular-nums text-slate-700">
                             +{p.phone}
-                          </td>
-                          <td className="py-3 px-4 font-mono text-slate-500 truncate max-w-[180px]">
-                            {p.checkoutRequestId || '—'}
                           </td>
                           <td className="py-3 px-4 font-mono font-semibold text-emerald-700">
                             {p.receipt || '—'}
@@ -1757,13 +1679,13 @@ export default function App() {
                             {p.status === 'pending' && (
                               <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>Awaiting PIN</span>
+                                <span>Waiting</span>
                               </span>
                             )}
                             {p.status === 'failed' && (
                               <span className="inline-flex items-center gap-1 font-semibold text-rose-700">
                                 <XCircle className="w-3.5 h-3.5" />
-                                <span>Failed</span>
+                                <span>Cancelled</span>
                               </span>
                             )}
                           </td>
@@ -1776,7 +1698,7 @@ export default function App() {
                                 }
                                 className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded cursor-pointer"
                               >
-                                Settle Now
+                                Mark Paid
                               </button>
                             ) : (
                               <button
@@ -1784,7 +1706,7 @@ export default function App() {
                                 onClick={() => setSelectedReceiptBill(bill)}
                                 className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
                               >
-                                <span>Voucher</span>
+                                <span>Receipt</span>
                                 <ArrowUpRight className="w-3.5 h-3.5" />
                               </button>
                             )}
@@ -1798,12 +1720,12 @@ export default function App() {
             </section>
           )}
 
-          {/* PORTAL SECTION 5: SAVED CONTACTS & GROUPS */}
+          {/* SECTION 5: FRIENDS & GROUPS */}
           {portalSection === 'contacts' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <section className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 space-y-4">
                 <h2 className="text-base font-bold text-slate-900">
-                  Save Frequent M-Pesa Contact
+                  Save a Friend’s M-Pesa Number
                 </h2>
                 <form onSubmit={handleAddContact} className="space-y-4">
                   <div>
@@ -1811,7 +1733,7 @@ export default function App() {
                       htmlFor="contact-name"
                       className="block text-xs font-semibold text-slate-700 mb-1"
                     >
-                      Full Name
+                      Friend’s Full Name
                     </label>
                     <input
                       id="contact-name"
@@ -1828,7 +1750,7 @@ export default function App() {
                       htmlFor="contact-phone"
                       className="block text-xs font-semibold text-slate-700 mb-1"
                     >
-                      Kenyan M-Pesa Number
+                      M-Pesa Phone Number
                     </label>
                     <input
                       id="contact-phone"
@@ -1836,7 +1758,7 @@ export default function App() {
                       required
                       value={newContactPhone}
                       onChange={(e) => setNewContactPhone(e.target.value)}
-                      placeholder="0712345678"
+                      placeholder="0712 345 678"
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
@@ -1845,14 +1767,14 @@ export default function App() {
                       htmlFor="contact-tag"
                       className="block text-xs font-semibold text-slate-700 mb-1"
                     >
-                      Relationship / Group Tag
+                      Group / Label
                     </label>
                     <input
                       id="contact-tag"
                       type="text"
                       value={newContactTag}
                       onChange={(e) => setNewContactTag(e.target.value)}
-                      placeholder="Colleague, Housemate, Client..."
+                      placeholder="Friend, Colleague, Housemate..."
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
@@ -1868,7 +1790,7 @@ export default function App() {
                     className="w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>Save Contact</span>
+                    <span>Save Friend</span>
                   </button>
                 </form>
               </section>
@@ -1876,7 +1798,7 @@ export default function App() {
               <section className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200">
                   <h2 className="text-base font-bold text-slate-900">
-                    Saved Directory ({contacts.length})
+                    Saved Friends ({contacts.length})
                   </h2>
                 </div>
                 <div className="divide-y divide-slate-200">
@@ -1897,7 +1819,7 @@ export default function App() {
                         type="button"
                         onClick={() => handleDeleteContact(c.id)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer"
-                        aria-label={`Delete ${c.name}`}
+                        aria-label={`Remove ${c.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1907,252 +1829,103 @@ export default function App() {
               </section>
             </div>
           )}
-
-          {/* PORTAL SECTION 6: RECONCILIATION & CRYPTOGRAPHIC AUDIT */}
-          {portalSection === 'security' && (
-            <div className="space-y-6">
-              <section className="bg-white border border-slate-200 rounded-xl p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4 pb-5 mb-6 border-b border-slate-200">
-                  <div>
-                    <h1 className="text-base font-bold text-slate-900">
-                      Payment Security & Cryptographic Audit Trail
-                    </h1>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Verify request idempotency, webhook replay protection, and SHA-256 hash-chained logs.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleTestIdempotencyGuard}
-                      className="px-3.5 py-2 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer"
-                    >
-                      Verify Idempotency Guard
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleTestWebhookReplayGuard}
-                      className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer"
-                    >
-                      Simulate Webhook Replay Attack
-                    </button>
-                  </div>
-                </div>
-
-                {securityBanner && (
-                  <div
-                    role="status"
-                    className="mb-6 p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>{securityBanner.text}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSecurityBanner(null)}
-                      className="text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-900">
-                      Idempotency Keys
-                    </div>
-                    <div className="mt-1 text-xl font-bold font-mono tabular-nums text-slate-900">
-                      {securityMetrics.idempotencyKeysActive} Active
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-900">
-                      Replays Blocked
-                    </div>
-                    <div className="mt-1 text-xl font-bold font-mono tabular-nums text-emerald-700">
-                      {securityMetrics.replayAttacksBlocked} Blocked
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-900">
-                      Callbacks Verified
-                    </div>
-                    <div className="mt-1 text-xl font-bold font-mono tabular-nums text-slate-900">
-                      {securityMetrics.callbacksVerified} Verified
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-900">
-                      Rate Limit Guard
-                    </div>
-                    <div className="mt-1 text-xl font-bold font-mono tabular-nums text-slate-900">
-                      25 req / min
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-slate-900">
-                    Immutable SHA-256 Hash-Chained Audit Log ({auditLogs.length})
-                  </h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        <th className="py-3 px-4">Timestamp</th>
-                        <th className="py-3 px-4">Event</th>
-                        <th className="py-3 px-4">Ref</th>
-                        <th className="py-3 px-4">Actor</th>
-                        <th className="py-3 px-4">Details</th>
-                        <th className="py-3 px-4">Chain Hash</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 text-xs">
-                      {auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-4 font-mono tabular-nums text-slate-500 whitespace-nowrap">
-                            {formatTime(log.timestamp)}
-                          </td>
-                          <td className="py-3 px-4 font-mono font-semibold whitespace-nowrap">
-                            <span
-                              className={
-                                log.severity === 'error'
-                                  ? 'text-rose-700'
-                                  : log.severity === 'warning'
-                                  ? 'text-amber-700'
-                                  : log.severity === 'success'
-                                  ? 'text-emerald-700'
-                                  : 'text-slate-900'
-                              }
-                            >
-                              {log.event}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono font-semibold text-slate-800">
-                            #{log.billId}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600">{log.actor}</td>
-                          <td className="py-3 px-4 text-slate-700 max-w-md">
-                            {log.details}
-                          </td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                            {log.prevHash.slice(0, 8)} →{' '}
-                            <span className="text-slate-900 font-semibold">
-                              {log.hash.slice(0, 12)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-          )}
         </main>
       </div>
 
-      {/* Printable Official Receipt Voucher Modal */}
+      {/* Printable Payment Receipt Modal */}
       {selectedReceiptBill && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="receipt-dialog-title"
+          aria-labelledby="receipt-modal-title"
           className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
         >
           <div className="bg-white border border-slate-200 rounded-xl max-w-lg w-full overflow-hidden shadow-xl">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <div>
-                <h2 id="receipt-dialog-title" className="text-base font-bold text-slate-900">
-                  SplitPesa Payment Voucher
-                </h2>
-                <p className="text-xs font-mono text-slate-500">
-                  Ref #{selectedReceiptBill.id} · {selectedReceiptBill.category}
-                </p>
+                <div className="text-xs text-emerald-700 font-semibold">
+                  SplitPesa Payment Summary
+                </div>
+                <h3 id="receipt-modal-title" className="text-base font-bold text-slate-900">
+                  {selectedReceiptBill.title} (Bill #{selectedReceiptBill.id})
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedReceiptBill(null)}
                 aria-label="Close receipt modal"
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+            <div className="p-6 space-y-5 text-xs">
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
                 <div>
-                  <div className="text-xs text-slate-500">Bill Description</div>
-                  <div className="text-sm font-bold text-slate-900">
-                    {selectedReceiptBill.title}
+                  <div className="text-slate-500">Category</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {selectedReceiptBill.category}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-slate-500">Total Split Amount</div>
-                  <div className="text-lg font-bold font-mono tabular-nums text-slate-900">
+                  <div className="text-slate-500">Total Bill Amount</div>
+                  <div className="text-base font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                     KES {fmt(selectedReceiptBill.total)}
                   </div>
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-lg divide-y divide-slate-200">
-                {selectedReceiptBill.participants.map((p) => (
-                  <div
-                    key={p.phone}
-                    className="px-3.5 py-2.5 flex items-center justify-between text-xs"
-                  >
-                    <div>
-                      <div className="font-semibold text-slate-900">{p.name}</div>
-                      <div className="font-mono text-slate-500">
-                        +{p.phone} · {p.receipt ? `Receipt ${p.receipt}` : 'Unsettled'}
+              <div>
+                <div className="font-semibold text-slate-700 mb-2">
+                  Individual Shares & M-Pesa Receipts
+                </div>
+                <div className="border border-slate-200 rounded-lg divide-y divide-slate-200">
+                  {selectedReceiptBill.participants.map((p) => (
+                    <div
+                      key={p.id || p.phone}
+                      className="p-3 flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="font-semibold text-slate-900">{p.name}</div>
+                        <div className="font-mono text-slate-500">+{p.phone}</div>
+                      </div>
+                      <div className="text-right font-mono tabular-nums">
+                        <div className="font-bold text-slate-900">
+                          KES {fmt(p.amount)}
+                        </div>
+                        <div
+                          className={
+                            p.status === 'paid'
+                              ? 'text-emerald-700 font-semibold'
+                              : 'text-amber-700'
+                          }
+                        >
+                          {p.receipt ? `Receipt: ${p.receipt}` : p.status.toUpperCase()}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right font-mono tabular-nums">
-                      <div className="font-bold text-slate-900">KES {fmt(p.amount)}</div>
-                      <div
-                        className={
-                          p.status === 'paid'
-                            ? 'text-emerald-700 font-semibold'
-                            : p.status === 'failed'
-                            ? 'text-rose-700 font-semibold'
-                            : 'text-amber-700 font-semibold'
-                        }
-                      >
-                        {p.status.toUpperCase()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-600 space-y-1">
-                <div>Idempotency Key: {selectedReceiptBill.idempotencyKey}</div>
-                <div>HMAC-SHA256 Signature: {selectedReceiptBill.signatureHash}</div>
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print / Save PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReceiptBill(null)}
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
-            </div>
-
-            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
-              >
-                Print Voucher
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedReceiptBill(null)}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer"
-              >
-                Done
-              </button>
             </div>
           </div>
         </div>

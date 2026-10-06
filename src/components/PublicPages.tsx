@@ -3,17 +3,18 @@ import {
   ArrowRight,
   CheckCircle2,
   ShieldCheck,
-  Lock,
-  Terminal,
   Building2,
   Users,
   FileSpreadsheet,
   AlertCircle,
-  KeyRound,
+  Lock,
   UserPlus,
   LogIn,
   ChevronDown,
   ChevronUp,
+  Smartphone,
+  Receipt,
+  Sparkles,
 } from 'lucide-react';
 import type { User, AuthResponse } from '../types.js';
 import { PWAInstallButton } from './PWAInstall.js';
@@ -56,10 +57,10 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
   const [calcTotal, setCalcTotal] = useState<string>('6000');
   const [calcPeople, setCalcPeople] = useState<number>(4);
 
-  // Interactive API Inspector State on How It Works page
-  const [activePayloadTab, setActivePayloadTab] = useState<
-    'request' | 'daraja' | 'callback' | 'audit'
-  >('request');
+  // Interactive Example Walkthrough on How It Works page
+  const [activeExampleTab, setActiveExampleTab] = useState<
+    'dinner' | 'utilities' | 'roadtrip'
+  >('dinner');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Auth Form State
@@ -87,13 +88,21 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-      const data = (await res.json()) as AuthResponse & { message?: string };
-      if (!res.ok) {
-        throw new Error(data.message || 'Sign in failed');
+      const data = (await res.json().catch(() => ({}))) as Partial<AuthResponse> & {
+        message?: string;
+      };
+      if (!res.ok || !data.user || !data.token) {
+        throw new Error(
+          data.message || 'We could not sign you in. Please check your email and password.'
+        );
       }
       onAuthSuccess(data.user, data.token);
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Unable to sign in');
+      setAuthError(
+        err instanceof Error
+          ? err.message
+          : 'We could not connect right now. Please try again in a moment.'
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -113,11 +122,19 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
           password: 'SplitPesa2026!',
         }),
       });
-      const data = (await res.json()) as AuthResponse & { message?: string };
-      if (!res.ok) throw new Error(data.message || 'Demo sign in failed');
+      const data = (await res.json().catch(() => ({}))) as Partial<AuthResponse> & {
+        message?: string;
+      };
+      if (!res.ok || !data.user || !data.token) {
+        throw new Error(data.message || 'We could not open the demo account right now.');
+      }
       onAuthSuccess(data.user, data.token);
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Unable to sign in');
+      setAuthError(
+        err instanceof Error
+          ? err.message
+          : 'We could not sign in right now. Please try again.'
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -139,13 +156,21 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
           password: regPassword,
         }),
       });
-      const data = (await res.json()) as AuthResponse & { message?: string };
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
+      const data = (await res.json().catch(() => ({}))) as Partial<AuthResponse> & {
+        message?: string;
+      };
+      if (!res.ok || !data.user || !data.token) {
+        throw new Error(
+          data.message || 'We could not create your account. Please check your details.'
+        );
       }
       onAuthSuccess(data.user, data.token);
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Unable to create account');
+      setAuthError(
+        err instanceof Error
+          ? err.message
+          : 'We could not create your account right now. Please try again.'
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -153,10 +178,9 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Top Bar Contract: Strictly 3 zones (Single Brand Wordmark | 4 Nav Links | 2 Actions) */}
+      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-4">
         <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-6">
-          {/* Zone 1: Single text element wordmark */}
           <a
             href="#home"
             onClick={(e) => {
@@ -168,7 +192,6 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
             SplitPesa
           </a>
 
-          {/* Zone 2: 4 Clean Single-Line Text Navigation Links */}
           <nav
             aria-label="Website Navigation"
             className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600"
@@ -182,7 +205,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   : 'hover:text-slate-900'
               }`}
             >
-              Overview
+              Home
             </button>
             <button
               type="button"
@@ -204,7 +227,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   : 'hover:text-slate-900'
               }`}
             >
-              Pricing & Limits
+              Pricing
             </button>
             <button
               type="button"
@@ -215,7 +238,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   : 'hover:text-slate-900'
               }`}
             >
-              Security
+              Safety & Trust
             </button>
             <button
               type="button"
@@ -226,11 +249,10 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   : 'hover:text-slate-900'
               }`}
             >
-              Policies & Legal
+              Privacy & Legal
             </button>
           </nav>
 
-          {/* Zone 3: 1-2 Primary Actions */}
           <div className="flex items-center gap-2.5 shrink-0">
             <PWAInstallButton variant="header" />
             {currentUser ? (
@@ -239,7 +261,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                 onClick={() => onNavigate('portal')}
                 className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
               >
-                <span>Open Payment Portal</span>
+                <span>My Dashboard</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             ) : (
@@ -262,7 +284,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   }}
                   className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
                 >
-                  Create Account
+                  Create Free Account
                 </button>
               </>
             )}
@@ -277,14 +299,14 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
           <section className="bg-white border-b border-slate-200 py-16 lg:py-20 px-6">
             <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               <div className="lg:col-span-7 space-y-6">
-                <div className="text-xs font-mono font-semibold text-emerald-700">
-                  Safaricom Daraja M-Pesa Express · Automated Group Settlement
+                <div className="text-xs font-semibold text-emerald-700">
+                  Simple Group Payments with M-Pesa · Built for Kenya
                 </div>
                 <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-[1.12] max-w-2xl">
-                  Split shared bills and reconcile M-Pesa payments without chasing receipts.
+                  Split shared bills with friends and collect M-Pesa payments effortlessly.
                 </h1>
                 <p className="text-base text-slate-600 leading-relaxed max-w-xl">
-                  SplitPesa dispatches simultaneous M-Pesa STK Push prompts to every participant’s phone, verifies Safaricom callback receipts in real time, and maintains a cryptographically signed settlement ledger for individuals, restaurants, and groups.
+                  Whether it is a group dinner, shared apartment bills, a weekend road trip, or an office lunch, SplitPesa sends an instant M-Pesa payment prompt to everyone’s phone and shows you who has paid in real time—no more chasing screenshots.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -294,7 +316,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                     className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
                   >
                     <span>
-                      {currentUser ? 'Go to Dashboard Workspace' : 'Start Splitting Bills'}
+                      {currentUser ? 'Open My Dashboard' : 'Start Splitting Bills Free'}
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
@@ -303,19 +325,19 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                     onClick={() => onNavigate('how-it-works')}
                     className="px-5 py-3.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
                   >
-                    Inspect Daraja Architecture
+                    See How It Works
                   </button>
                   <PWAInstallButton variant="hero" />
                 </div>
 
-                {/* Unboxed Proof Metrics Bar */}
+                {/* Friendly Highlights */}
                 <div className="pt-6 border-t border-slate-200 grid grid-cols-3 gap-6 max-w-lg">
                   <div>
                     <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
-                      &lt; 2.4s
+                      Instant
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Concurrent STK Push dispatch
+                      Phone prompts sent together
                     </div>
                   </div>
                   <div>
@@ -323,15 +345,15 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                       100%
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Exact-cent split reconciliation
+                      Fair to the last shilling
                     </div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
-                      SHA-256
+                      Zero
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Idempotent & replay-guarded
+                      Accidental double charges
                     </div>
                   </div>
                 </div>
@@ -343,10 +365,10 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   <div className="flex items-center justify-between pb-3.5 border-b border-slate-200">
                     <div>
                       <h2 className="text-sm font-bold text-slate-900">
-                        Interactive Split Calculator
+                        Quick Bill Calculator
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Preview per-person M-Pesa STK Push allocation
+                        See how much each person will pay on M-Pesa
                       </p>
                     </div>
                     <span className="text-xs font-mono text-emerald-700 font-semibold">
@@ -360,7 +382,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                         htmlFor="hero-calc-title"
                         className="block text-xs font-semibold text-slate-700 mb-1"
                       >
-                        Expense Reference
+                        What is the bill for?
                       </label>
                       <input
                         id="hero-calc-title"
@@ -394,7 +416,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                           htmlFor="hero-calc-people"
                           className="block text-xs font-semibold text-slate-700 mb-1"
                         >
-                          Participants ({calcPeople})
+                          People Sharing ({calcPeople})
                         </label>
                         <div className="flex items-center gap-1.5">
                           {[2, 3, 4, 6, 8].map((n) => (
@@ -417,14 +439,14 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
 
                     <div className="p-4 rounded-lg bg-white border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Each Participant Receives STK Prompt For</span>
-                        <span className="font-mono">{calcPeople} MSISDNs</span>
+                        <span>Each Person Pays</span>
+                        <span className="font-medium">{calcPeople} people</span>
                       </div>
                       <div className="text-2xl font-bold font-mono tabular-nums text-emerald-700">
                         KES {fmt(perPersonShare)}
                       </div>
                       <div className="text-[11px] text-slate-500">
-                        Remainder cents are automatically reconciled so total collected equals KES{' '}
+                        Any extra cents are balanced automatically so the total collected is exactly KES{' '}
                         {fmt(numericCalcTotal)}.
                       </div>
                     </div>
@@ -439,7 +461,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                       }}
                       className="w-full py-3 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
-                      <span>Launch Split in Workspace</span>
+                      <span>Split This Bill Now</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -448,167 +470,167 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
             </div>
           </section>
 
-          {/* Core Capabilities (Asymmetric Bento Grid with Editorial Numbering) */}
+          {/* Everyday Features Section */}
           <section className="py-16 px-6 max-w-[1280px] mx-auto">
             <div className="max-w-2xl mb-10">
-              <div className="text-xs font-mono font-semibold text-emerald-700">
-                Platform Architecture
+              <div className="text-xs font-semibold text-emerald-700">
+                Why People Love SplitPesa
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-1">
-                Built for reliable M-Pesa payment collection and accounting clarity.
+                Everything you need to split expenses without awkward reminders.
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-7 flex flex-col justify-between">
                 <div>
-                  <div className="text-xs font-mono font-semibold text-slate-500 mb-2">
-                    01. Concurrent Daraja STK Push Dispatch
+                  <div className="text-xs font-semibold text-emerald-700 mb-2">
+                    01. Direct M-Pesa Phone Prompts
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    Simultaneous PIN prompts with OAuth 2.0 token caching
+                    Everyone gets a payment prompt on their phone at the same time
                   </h3>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                    Instead of queuing requests sequentially, SplitPesa caches Safaricom Daraja OAuth bearer tokens in memory and dispatches `CustomerPayBillOnline` prompts concurrently across all participants. Every participant receives their M-Pesa prompt within seconds.
+                    Instead of asking everyone to memorize a PayBill or Till number, SplitPesa sends an official M-Pesa payment prompt straight to each person’s phone. They simply check the amount, enter their M-Pesa PIN on their own phone, and they are done.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-4 text-xs font-mono text-slate-600">
-                  <span>Format normalization: 07XX → 2547XX</span>
+                <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                  <span>Works with 07XX and 01XX numbers</span>
                   <span>·</span>
-                  <span>Batch capacity: 2 to 15 MSISDNs</span>
+                  <span>Split among 2 to 15 people at once</span>
                 </div>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-xl p-7 flex flex-col justify-between">
                 <div>
-                  <div className="text-xs font-mono font-semibold text-slate-500 mb-2">
-                    02. Financial Precision
+                  <div className="text-xs font-semibold text-emerald-700 mb-2">
+                    02. Equal or Custom Shares
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    Exact-cent equal and itemized custom splits
+                    Split evenly or enter exact meal amounts
                   </h3>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                    Uses integer-cent arithmetic so splitting KES 1,000 across 3 people never loses a cent, or switch to itemized mode when everyone ordered different items.
+                    Divide a shared bill equally in one tap, or switch to Custom Amounts when friends ordered different meals and drinks.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-200 text-xs font-mono text-emerald-700 font-semibold">
-                  Zero floating-point rounding drift
+                <div className="mt-6 pt-4 border-t border-slate-200 text-xs text-emerald-700 font-semibold">
+                  Automatically checks that shares match the total
                 </div>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-xl p-7 flex flex-col justify-between">
                 <div>
-                  <div className="text-xs font-mono font-semibold text-slate-500 mb-2">
-                    03. Payment Security
+                  <div className="text-xs font-semibold text-emerald-700 mb-2">
+                    03. Safe & Worry-Free
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    Idempotency keys and webhook replay protection
+                    Built-in protection against double charges
                   </h3>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                    Every split request carries an `X-Idempotency-Key` fingerprint so double-clicks never charge participants twice, and replayed `CheckoutRequestID` webhooks are blocked with HTTP 409.
+                    Even if your mobile internet is slow and you click Send twice, SplitPesa makes sure your friends only receive one payment request.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-200 text-xs font-mono text-slate-600">
-                  HMAC-SHA256 signed records
+                <div className="mt-6 pt-4 border-t border-slate-200 text-xs text-slate-600">
+                  Your M-Pesa PIN stays 100% private on your phone
                 </div>
               </div>
 
               <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-7 flex flex-col justify-between">
                 <div>
-                  <div className="text-xs font-mono font-semibold text-slate-500 mb-2">
-                    04. Live Reconciliation & Saved Groups
+                  <div className="text-xs font-semibold text-emerald-700 mb-2">
+                    04. Live Receipts & Saved Friend Groups
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    Track M-Pesa receipt codes, retry declined prompts, and export CSV ledgers
+                    See M-Pesa receipts immediately and resend missed prompts in one tap
                   </h3>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                    When a participant enters their M-Pesa PIN, SplitPesa extracts the official `MpesaReceiptNumber` (e.g., `SJK94M2QW1`) from the Daraja callback metadata. If someone cancels by mistake (`ResultCode 1032`), resend their STK Push in one click.
+                    As soon as a friend pays, their M-Pesa receipt code appears on your bill tracker. If someone accidentally closes the prompt on their phone, you can resend it to just that person with a single tap.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-4 text-xs font-mono text-slate-600">
-                  <span>Printable Payment Vouchers</span>
+                <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                  <span>Printable Payment Receipts</span>
                   <span>·</span>
-                  <span>One-Click Accounting CSV Export</span>
+                  <span>Downloadable Excel / CSV Summary</span>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Proof of Impact / Case Studies Section */}
+          {/* Real-Life Stories Section */}
           <section className="bg-white border-y border-slate-200 py-16 px-6">
             <div className="max-w-[1280px] mx-auto">
               <div className="max-w-2xl mb-10">
-                <div className="text-xs font-mono font-semibold text-emerald-700">
-                  Verified Deployments
+                <div className="text-xs font-semibold text-emerald-700">
+                  Made for Everyday Moments
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-1">
-                  How teams and venues settle group payments in Kenya.
+                  How friends, housemates, and restaurants use SplitPesa across Kenya.
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <article className="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between">
                   <div>
-                    <div className="text-xs font-mono text-slate-500">
-                      Hospitality · Kilimani, Nairobi
+                    <div className="text-xs text-slate-500">
+                      Restaurants & Cafes · Kilimani, Nairobi
                     </div>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
                       Kilimani Bistro & Grill
                     </h3>
                     <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                      Replaced manual PayBill calculator math on group dining tables of 6–12 guests with instant itemized STK Push dispatch at the table.
+                      Group tables of 6 to 12 guests settle their dinner bill in under two minutes without passing a calculator around the table.
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-slate-200">
                     <div className="text-xl font-bold font-mono tabular-nums text-emerald-700">
-                      -68% Table Turnaround Time
+                      2 Mins to Settle
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Measured across 1,400+ group dining bills in Q3
+                      Every diner gets their own M-Pesa receipt
                     </div>
                   </div>
                 </article>
 
                 <article className="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between">
                   <div>
-                    <div className="text-xs font-mono text-slate-500">
-                      Shared Workspace · Westlands
+                    <div className="text-xs text-slate-500">
+                      Apartments & Coworking · Westlands
                     </div>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
-                      Nairobi Tech Collective
+                      Shared Monthly Bills
                     </h3>
                     <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                      Automates monthly fiber internet, backup generator fuel, and catering splits across 14 resident startup teams with CSV export.
+                      Housemates and office teams save their group once and split monthly Wi-Fi, water, and electricity bills in seconds.
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-slate-200">
                     <div className="text-xl font-bold font-mono tabular-nums text-emerald-700">
-                      99.4% Same-Day Collection
+                      Saved Groups
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      KES 420,000+ reconciled monthly without manual follow-ups
+                      No re-typing phone numbers every month
                     </div>
                   </div>
                 </article>
 
                 <article className="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between">
                   <div>
-                    <div className="text-xs font-mono text-slate-500">
-                      Group Travel · JKIA & Naivasha
+                    <div className="text-xs text-slate-500">
+                      Weekend Trips & Chamas · Naivasha & Coast
                     </div>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
-                      Rift Valley Charter Vans
+                      Group Travel & Events
                     </h3>
                     <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                      Collects verified M-Pesa passenger shares prior to vehicle dispatch with instant voucher generation for drivers.
+                      Trip organizers collect transport, accommodation, and barbecue contributions fairly and share a printable payment receipt with the group.
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-slate-200">
                     <div className="text-xl font-bold font-mono tabular-nums text-emerald-700">
-                      Zero Duplicate Charges
+                      Clear Receipts
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Protected by SHA-256 request idempotency keys
+                      Everyone sees who has paid at a glance
                     </div>
                   </div>
                 </article>
@@ -622,46 +644,46 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
       {currentPage === 'how-it-works' && (
         <main className="flex-1 py-12 px-6 max-w-[1280px] w-full mx-auto space-y-12">
           <div className="max-w-3xl">
-            <div className="text-xs font-mono font-semibold text-emerald-700">
-              End-to-End Transaction Lifecycle
+            <div className="text-xs font-semibold text-emerald-700">
+              Simple 4-Step Guide
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mt-1">
-              How SplitPesa processes Safaricom Daraja M-Pesa Express transactions.
+              How splitting a bill works from start to finish.
             </h1>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-              Every bill split executes a four-stage workflow between the React client, the Express TypeScript backend, and Safaricom’s Daraja 2.0 API.
+              You do not need any accounting or technical knowledge. SplitPesa handles the math, sends the M-Pesa prompts, and organizes the receipts for you.
             </p>
           </div>
 
-          {/* 4-Step Pipeline */}
+          {/* 4-Step Friendly Workflow */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             {[
               {
-                step: '01. Validation & Idempotency',
-                title: 'Sanitize MSISDNs & Lock Key',
-                desc: 'Phone numbers (07XX, +2547XX) are normalized to 2547XXXXXXXX. Integer-cent shares are computed and locked under an X-Idempotency-Key.',
+                step: 'Step 1',
+                title: 'Enter the Bill & Friends',
+                desc: 'Type what the bill is for, enter the total amount in KES, and add your friends’ M-Pesa phone numbers (or pick a saved group).',
               },
               {
-                step: '02. Daraja OAuth & STK Push',
-                title: 'Dispatch CustomerPayBillOnline',
-                desc: 'The server exchanges Consumer Key/Secret for a cached Bearer token, encodes the Shortcode + Passkey + Timestamp password, and triggers STK prompts.',
+                step: 'Step 2',
+                title: 'Send M-Pesa Requests',
+                desc: 'Tap "Send M-Pesa Requests". Everyone receives an official payment prompt on their phone showing their exact share.',
               },
               {
-                step: '03. Asynchronous Webhook',
-                title: 'Verify Callback & Receipt',
-                desc: 'When each user enters their M-Pesa PIN, Safaricom POSTs to /api/callback. Replay protection verifies CheckoutRequestID and extracts MpesaReceiptNumber.',
+                step: 'Step 3',
+                title: 'Friends Enter Their PIN',
+                desc: 'Each friend reviews the amount on their own phone and enters their M-Pesa PIN privately to complete their payment.',
               },
               {
-                step: '04. Hash-Chained Ledger',
-                title: 'Reconcile & Export Voucher',
-                desc: 'The bill progress updates to Settled, an immutable SHA-256 audit entry is chained to the log, and an official receipt voucher is ready to print or export.',
+                step: 'Step 4',
+                title: 'Instant Receipts & Summary',
+                desc: 'Your bill tracker updates automatically with each person’s M-Pesa receipt code, ready to view, print, or download.',
               },
             ].map((item) => (
               <div
                 key={item.step}
                 className="bg-white border border-slate-200 rounded-xl p-6 space-y-2.5"
               >
-                <div className="text-xs font-mono font-semibold text-emerald-700">
+                <div className="text-xs font-semibold text-emerald-700">
                   {item.step}
                 </div>
                 <h2 className="text-base font-bold text-slate-900">{item.title}</h2>
@@ -670,31 +692,30 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
             ))}
           </div>
 
-          {/* Interactive Payload Inspector */}
+          {/* Interactive Real-World Scenarios Preview */}
           <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-slate-700" />
+                <Sparkles className="w-4 h-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-slate-900">
-                  Interactive Daraja API & Webhook Payload Inspector
+                  See Real-Life Examples of SplitPesa in Action
                 </h2>
               </div>
 
               <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200">
                 {(
                   [
-                    { id: 'request', label: '1. Client Split Request' },
-                    { id: 'daraja', label: '2. Daraja STK Payload' },
-                    { id: 'callback', label: '3. Safaricom Callback' },
-                    { id: 'audit', label: '4. SHA-256 Audit Record' },
+                    { id: 'dinner', label: '1. Group Dinner (Equal Split)' },
+                    { id: 'utilities', label: '2. House Utilities (Saved Group)' },
+                    { id: 'roadtrip', label: '3. Custom Meal Orders' },
                   ] as const
                 ).map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setActivePayloadTab(t.id)}
+                    onClick={() => setActiveExampleTab(t.id)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                      activePayloadTab === t.id
+                      activeExampleTab === t.id
                         ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -705,100 +726,120 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
               </div>
             </div>
 
-            <div className="p-6 bg-slate-900 text-slate-100 font-mono text-xs overflow-x-auto">
-              {activePayloadTab === 'request' && (
-                <pre className="leading-relaxed">{`POST /api/split-bill HTTP/1.1
-Host: splitpesa.co.ke
-Content-Type: application/json
-X-Idempotency-Key: idem_20261006_kilimani94
-
-{
-  "title": "Team Lunch — Kilimani Bistro",
-  "category": "Dining & Hospitality",
-  "total": 4500.00,
-  "splitMode": "equal",
-  "participants": [
-    { "name": "Amina Wanjiku", "phone": "0712345678", "amount": 1500.00 },
-    { "name": "Brian Ochieng", "phone": "0722987654", "amount": 1500.00 },
-    { "name": "Cynthia Muthoni", "phone": "0733456123", "amount": 1500.00 }
-  ]
-}`}</pre>
+            <div className="p-6 bg-slate-50">
+              {activeExampleTab === 'dinner' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-1">
+                    <div className="text-xs text-slate-500">Bill Details</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      Team Lunch — Kilimani Bistro
+                    </div>
+                    <div className="text-lg font-bold font-mono text-emerald-700 pt-1">
+                      Total: KES 4,500.00
+                    </div>
+                    <div className="text-xs text-slate-500">Split equally among 3 friends</div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-700">
+                      What Each Friend Receives on Their Phone:
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded bg-slate-50 border border-slate-200">
+                        <div className="font-semibold text-slate-900">Amina Wanjiku</div>
+                        <div className="font-mono text-slate-500">0712 345 678</div>
+                        <div className="mt-1 font-mono font-bold text-emerald-700">
+                          KES 1,500.00 · Paid (SJK94M2QW1)
+                        </div>
+                      </div>
+                      <div className="p-3 rounded bg-slate-50 border border-slate-200">
+                        <div className="font-semibold text-slate-900">Brian Ochieng</div>
+                        <div className="font-mono text-slate-500">0722 987 654</div>
+                        <div className="mt-1 font-mono font-bold text-emerald-700">
+                          KES 1,500.00 · Paid (SJK71L8KP4)
+                        </div>
+                      </div>
+                      <div className="p-3 rounded bg-slate-50 border border-slate-200">
+                        <div className="font-semibold text-slate-900">Cynthia Muthoni</div>
+                        <div className="font-mono text-slate-500">0733 456 123</div>
+                        <div className="mt-1 font-mono font-bold text-emerald-700">
+                          KES 1,500.00 · Paid (SJK39V5NX8)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
-              {activePayloadTab === 'daraja' && (
-                <pre className="leading-relaxed">{`POST https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest
-Authorization: Bearer <Cached_OAuth2_Access_Token>
-Content-Type: application/json
 
-{
-  "BusinessShortCode": "174379",
-  "Password": "MTc0Mzc5YmZiMjc5ZjlhYTliZGJjZjE1OGU5N2RkNzFhNDY3Y2QyZTBjODkzMDU5YjEwZjc4ZTZiNzJhZGExZWQyYzkxOTIwMjYxMDA2",
-  "Timestamp": "20261006123045",
-  "TransactionType": "CustomerPayBillOnline",
-  "Amount": 1500,
-  "PartyA": "254712345678",
-  "PartyB": "174379",
-  "PhoneNumber": "254712345678",
-  "CallBackURL": "https://splitpesa.co.ke/api/callback",
-  "AccountReference": "SP8492",
-  "TransactionDesc": "Team Lunch"
-}`}</pre>
+              {activeExampleTab === 'utilities' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-1">
+                    <div className="text-xs text-slate-500">Saved Housemate Group</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      Apartment 4B Monthly Wi-Fi & Power
+                    </div>
+                    <div className="text-lg font-bold font-mono text-emerald-700 pt-1">
+                      Total: KES 6,900.00
+                    </div>
+                    <div className="text-xs text-slate-500">3 housemates · KES 2,300.00 each</div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-700">
+                      Why Saved Groups Save Time:
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Select <strong>Apartment 4B Utilities</strong> from your dashboard to automatically fill in David, Faith, and Kelvin’s names and phone numbers. Enter the month’s total and send all three M-Pesa prompts in under 10 seconds.
+                    </p>
+                  </div>
+                </div>
               )}
-              {activePayloadTab === 'callback' && (
-                <pre className="leading-relaxed">{`POST /api/callback HTTP/1.1
-Content-Type: application/json
 
-{
-  "Body": {
-    "stkCallback": {
-      "MerchantRequestID": "MR-2910-88A1",
-      "CheckoutRequestID": "ws_CO_20261006_254712345678",
-      "ResultCode": 0,
-      "ResultDesc": "The service request is processed successfully.",
-      "CallbackMetadata": {
-        "Item": [
-          { "Name": "Amount", "Value": 1500.00 },
-          { "Name": "MpesaReceiptNumber", "Value": "SJK94M2QW1" },
-          { "Name": "TransactionDate", "Value": 20261006123102 },
-          { "Name": "PhoneNumber", "Value": 254712345678 }
-        ]
-      }
-    }
-  }
-}`}</pre>
-              )}
-              {activePayloadTab === 'audit' && (
-                <pre className="leading-relaxed">{`{
-  "id": "AUD-92F4K1",
-  "timestamp": "2026-10-06T12:31:02.410Z",
-  "event": "CALLBACK_VERIFIED",
-  "billId": "SP8492",
-  "actor": "Safaricom Daraja Webhook",
-  "details": "Confirmed KES 1500.00 from +254712345678 (Amina Wanjiku). Receipt: SJK94M2QW1",
-  "prevHash": "7c91e4a0b812f309",
-  "hash": "e3b0c44298fc1c149afbf4c8996fb924"
-}`}</pre>
+              {activeExampleTab === 'roadtrip' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-1">
+                    <div className="text-xs text-slate-500">Custom Shares Mode</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      Airport Transfer Van — JKIA
+                    </div>
+                    <div className="text-lg font-bold font-mono text-emerald-700 pt-1">
+                      Total: KES 2,800.00
+                    </div>
+                    <div className="text-xs text-slate-500">Uneven shares based on drop-off distance</div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2 md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-700">
+                      Custom Amounts Checked Automatically:
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Grace pays <strong>KES 1,600.00</strong> and Samuel pays <strong>KES 1,200.00</strong>. SplitPesa checks that the custom shares add up to exactly <strong>KES 2,800.00</strong> before sending the M-Pesa requests so there is never a shortfall.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </section>
 
-          {/* FAQ Section */}
+          {/* Friendly FAQ Section */}
           <section className="bg-white border border-slate-200 rounded-xl p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">
-              Technical & Operational Questions
+              Frequently Asked Questions
             </h2>
             <div className="divide-y divide-slate-200">
               {[
                 {
-                  q: 'What happens if a participant cancels or times out on their M-Pesa PIN prompt?',
-                  a: 'Safaricom Daraja returns ResultCode 1032 (Cancelled by user) or 1037 (DS timeout). SplitPesa marks only that specific participant as Failed and displays a one-click "Retry STK" button so you can resend the prompt without re-billing everyone else.',
+                  q: 'What happens if a friend accidentally cancels the M-Pesa prompt on their phone?',
+                  a: 'No problem! SplitPesa shows that their payment was cancelled and gives you a one-click "Resend Prompt" button next to their name so you can send the M-Pesa request to just that person without bothering everyone else who already paid.',
                 },
                 {
-                  q: 'How does SplitPesa prevent double-charging if an organizer clicks Submit twice?',
-                  a: 'Every draft bill generates a unique cryptographic X-Idempotency-Key. The backend stores a SHA-256 hash of the request payload against that key for 24 hours. Duplicate submissions return the existing bill record without calling Safaricom Daraja a second time.',
+                  q: 'Will my friends be charged twice if I accidentally click Send twice?',
+                  a: 'No. SplitPesa has built-in duplicate protection. If you tap the button twice by mistake, we recognize it as the same bill and only send a single M-Pesa prompt to each person.',
                 },
                 {
-                  q: 'Can we split bills unevenly when people order different items?',
-                  a: 'Yes. Switch the Split Allocation Method from "Equal Split" to "Custom / Itemized Shares" in the composer. The form validates in real time that all individual shares sum to 100% of the total bill before dispatching STK pushes.',
+                  q: 'Can we split a bill unevenly when people ordered different meals?',
+                  a: 'Yes! Switch from "Split Equally" to "Custom Amounts" when creating your bill. You can enter each person’s exact share, and SplitPesa will make sure all shares add up to the total bill.',
+                },
+                {
+                  q: 'Can I install SplitPesa as an app on my Android phone or iPhone?',
+                  a: 'Yes! Tap the "Get App" button at the top of the page to add SplitPesa directly to your Android, iPhone, or computer home screen for instant full-screen access.',
                 },
               ].map((faq, idx) => (
                 <div key={idx} className="py-3.5">
@@ -824,18 +865,18 @@ Content-Type: application/json
         </main>
       )}
 
-      {/* PAGE 3: PRICING & LIMITS PAGE */}
+      {/* PAGE 3: PRICING PAGE */}
       {currentPage === 'pricing' && (
         <main className="flex-1 py-12 px-6 max-w-[1280px] w-full mx-auto space-y-12">
           <div className="max-w-2xl">
-            <div className="text-xs font-mono font-semibold text-emerald-700">
-              Transparent Tiers & Safaricom Limits
+            <div className="text-xs font-semibold text-emerald-700">
+              Simple, Honest Pricing
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mt-1">
-              Plans structured for personal groups, hospitality venues, and Saccos.
+              Free for friends and housemates. Built to scale for restaurants and groups.
             </h1>
             <p className="text-sm text-slate-600 mt-2">
-              No hidden platform markups. Standard Safaricom M-Pesa PayBill/Till tariff bands apply.
+              No hidden SplitPesa fees on personal splits. Standard Safaricom M-Pesa rates apply.
             </p>
           </div>
 
@@ -844,26 +885,26 @@ Content-Type: application/json
               <div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Users className="w-4 h-4 text-slate-700" />
-                  <span>For Personal & Social Groups</span>
+                  <span>Friends & Housemates</span>
                 </div>
                 <div className="mt-3 text-3xl font-bold font-mono tabular-nums text-slate-900">
                   KES 0 <span className="text-xs font-sans font-normal text-slate-500">/ month</span>
                 </div>
                 <p className="text-xs text-slate-600 mt-2">
-                  Ideal for housemates, lunch groups, and weekend road trips.
+                  Great for lunch groups, housemates, and weekend road trips.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-700 border-t border-slate-200 pt-5">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Up to 8 participants per split bill</span>
+                    <span>Split bills among up to 8 people</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Equal & Custom itemized split modes</span>
+                    <span>Equal & Custom amount splits</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Printable official receipt vouchers</span>
+                    <span>Printable payment receipts</span>
                   </li>
                 </ul>
               </div>
@@ -881,9 +922,9 @@ Content-Type: application/json
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
                     <Building2 className="w-4 h-4" />
-                    <span>For Restaurants & Venues</span>
+                    <span>Restaurants & Venues</span>
                   </div>
-                  <span className="text-[11px] font-mono font-semibold text-slate-900">
+                  <span className="text-[11px] font-semibold text-slate-900">
                     Most Popular
                   </span>
                 </div>
@@ -892,24 +933,24 @@ Content-Type: application/json
                   <span className="text-xs font-sans font-normal text-slate-500">/ month</span>
                 </div>
                 <p className="text-xs text-slate-600 mt-2">
-                  For restaurants, lounges, and coworking spaces settling multi-guest bills.
+                  For restaurants, cafes, and lounges settling group dining tables fast.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-700 border-t border-slate-200 pt-5">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Up to 15 participants per split bill</span>
+                    <span>Split bills among up to 15 guests</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Custom PayBill / BuyGoods Shortcode binding</span>
+                    <span>Connect your own PayBill or BuyGoods Till</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Accounting CSV export & variance reconciliation</span>
+                    <span>One-click Excel / CSV accounting export</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Saved customer groups & instant STK retry</span>
+                    <span>Saved groups & one-tap prompt resend</span>
                   </li>
                 </ul>
               </div>
@@ -921,7 +962,7 @@ Content-Type: application/json
                 }}
                 className="mt-8 w-full py-2.5 px-4 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
               >
-                Open Merchant Account
+                Open Business Account
               </button>
             </div>
 
@@ -929,27 +970,27 @@ Content-Type: application/json
               <div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <FileSpreadsheet className="w-4 h-4 text-slate-700" />
-                  <span>For Saccos & Enterprise</span>
+                  <span>Chamas, Saccos & Teams</span>
                 </div>
                 <div className="mt-3 text-3xl font-bold font-mono tabular-nums text-slate-900">
                   KES 8,500{' '}
                   <span className="text-xs font-sans font-normal text-slate-500">/ month</span>
                 </div>
                 <p className="text-xs text-slate-600 mt-2">
-                  High-volume recurring collections, dedicated webhook endpoints, and audit logs.
+                  For larger groups, recurring monthly collections, and full payment history.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-700 border-t border-slate-200 pt-5">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Unlimited monthly split batches up to KES 500,000</span>
+                    <span>Unlimited monthly bills up to KES 500,000</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Full SHA-256 cryptographic audit log retention</span>
+                    <span>Complete downloadable payment reports</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Dedicated MySQL / Cloud SQL persistence</span>
+                    <span>Dedicated database backup support</span>
                   </li>
                 </ul>
               </div>
@@ -958,57 +999,57 @@ Content-Type: application/json
                 onClick={() => onNavigate(currentUser ? 'portal' : 'register')}
                 className="mt-8 w-full py-2.5 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               >
-                Start Enterprise Trial
+                Start Organization Plan
               </button>
             </div>
           </div>
 
-          {/* Safaricom M-Pesa Transaction Limits Reference */}
+          {/* Standard M-Pesa Limits Table */}
           <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200">
               <h2 className="text-sm font-bold text-slate-900">
-                Safaricom M-Pesa Daraja Transaction Guardrails Enforced by SplitPesa
+                Supported M-Pesa Payment Limits
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="py-3 px-4">Parameter</th>
+                    <th className="py-3 px-4">Item</th>
                     <th className="py-3 px-4">Minimum</th>
                     <th className="py-3 px-4">Maximum</th>
-                    <th className="py-3 px-4">Enforcement Mechanism</th>
+                    <th className="py-3 px-4">Notes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   <tr>
                     <td className="py-3 px-4 font-semibold text-slate-900">
-                      Single STK Push Amount
+                      Amount Per Person
                     </td>
                     <td className="py-3 px-4 font-mono tabular-nums">KES 1.00</td>
                     <td className="py-3 px-4 font-mono tabular-nums">KES 250,000.00</td>
                     <td className="py-3 px-4 text-slate-600">
-                      Validated pre-dispatch on both client and Express controller
+                      Standard Safaricom M-Pesa single payment limit
                     </td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-semibold text-slate-900">
-                      Total Batch Split Bill
+                      Total Shared Bill
                     </td>
                     <td className="py-3 px-4 font-mono tabular-nums">KES 2.00</td>
                     <td className="py-3 px-4 font-mono tabular-nums">KES 500,000.00</td>
                     <td className="py-3 px-4 text-slate-600">
-                      Integer-cent sum verification against total bill
+                      Split across 2 to 15 people on a single bill
                     </td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-semibold text-slate-900">
-                      MSISDN Prefix Format
+                      Supported Phone Numbers
                     </td>
-                    <td className="py-3 px-4 font-mono">2547XXXXXXXX</td>
-                    <td className="py-3 px-4 font-mono">2541XXXXXXXX</td>
+                    <td className="py-3 px-4 font-mono">07XX XXX XXX</td>
+                    <td className="py-3 px-4 font-mono">01XX XXX XXX</td>
                     <td className="py-3 px-4 text-slate-600">
-                      Regex ^254(7|1)\d&#123;8&#125;$ + duplicate participant block
+                      Also accepts +2547... and +2541... formats automatically
                     </td>
                   </tr>
                 </tbody>
@@ -1018,51 +1059,58 @@ Content-Type: application/json
         </main>
       )}
 
-      {/* PAGE 4: SECURITY ARCHITECTURE PAGE */}
+      {/* PAGE 4: SAFETY & TRUST PAGE */}
       {currentPage === 'security-info' && (
         <main className="flex-1 py-12 px-6 max-w-[1280px] w-full mx-auto space-y-10">
           <div className="max-w-3xl">
-            <div className="text-xs font-mono font-semibold text-emerald-700">
-              Payment Security Specification
+            <div className="text-xs font-semibold text-emerald-700">
+              Your Safety & Peace of Mind
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mt-1">
-              Defense-in-depth security for M-Pesa payment transactions.
+              How we keep your payments and personal details safe.
             </h1>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-              Payment applications require strict safeguards against duplicate charges, spoofed webhooks, brute-force STK flooding, and ledger tampering.
+              Handling money requires trust. SplitPesa is designed from the ground up so that you stay in full control of every payment.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               {
-                title: '1. Cryptographic Request Idempotency (X-Idempotency-Key)',
-                body: 'Every split bill request includes a unique idempotency key. The server hashes the request parameters with SHA-256. Retrying the same key returns the cached response; reusing a key with modified amounts or phone numbers is rejected with HTTP 409 Conflict.',
+                title: '1. We Never See or Ask For Your M-Pesa PIN',
+                body: 'You will never be asked to type your M-Pesa PIN on SplitPesa. When a bill is split, the official M-Pesa prompt appears directly on each person’s phone screen from Safaricom, where they enter their PIN privately.',
+                Icon: Smartphone,
               },
               {
-                title: '2. Daraja Webhook Replay Protection',
-                body: 'Each Safaricom Daraja callback carries a unique CheckoutRequestID. SplitPesa tracks processed CheckoutRequestIDs in a replay set so intercepted or re-sent webhook payloads cannot trigger duplicate state mutations.',
+                title: '2. Automatic Protection Against Double Charges',
+                body: 'If your phone connection is slow and you accidentally tap "Send M-Pesa Requests" twice, SplitPesa automatically detects the duplicate tap so your friends are never billed twice for the same expense.',
+                Icon: ShieldCheck,
               },
               {
-                title: '3. Scrypt Password Hashing & Signed Session Tokens',
-                body: 'User passwords are salted with 16 cryptographic random bytes and hashed using Node crypto.scryptSync with timing-safe verification (crypto.timingSafeEqual). Session tokens are signed with HMAC-SHA256.',
+                title: '3. Official M-Pesa Receipt Verification',
+                body: 'Every completed payment records the official 10-character M-Pesa receipt code (such as SJK94M2QW1) so both the organizer and everyone who chipped in have clear proof of payment.',
+                Icon: Receipt,
               },
               {
-                title: '4. Tamper-Evident SHA-256 Hash-Chained Audit Trail',
-                body: 'Every ledger event (BILL_CREATED, CALLBACK_VERIFIED, PAYMENT_FAILED, USER_LOGIN) computes hash = SHA256(prevHash | timestamp | event | billId | actor | details), creating an verifiable audit chain.',
+                title: '4. Private, Encrypted Accounts',
+                body: 'Your account password is encrypted before saving, your saved friends list is private to your workspace, and we never sell or share phone numbers with advertisers.',
+                Icon: Lock,
               },
-            ].map((card) => (
-              <div
-                key={card.title}
-                className="bg-white border border-slate-200 rounded-xl p-6 space-y-2"
-              >
-                <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
-                  <ShieldCheck className="w-4 h-4 shrink-0" />
-                  <h2>{card.title}</h2>
+            ].map((card) => {
+              const Icon = card.Icon;
+              return (
+                <div
+                  key={card.title}
+                  className="bg-white border border-slate-200 rounded-xl p-6 space-y-2.5"
+                >
+                  <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <h2>{card.title}</h2>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{card.body}</p>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{card.body}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </main>
       )}
@@ -1071,7 +1119,6 @@ Content-Type: application/json
       {(currentPage === 'login' || currentPage === 'register') && (
         <main className="flex-1 flex items-center justify-center py-12 px-6">
           <div className="max-w-md w-full bg-white border border-slate-200 rounded-xl p-8">
-            {/* Mode Switcher */}
             <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200 mb-6">
               <button
                 type="button"
@@ -1107,10 +1154,10 @@ Content-Type: application/json
               <div className="space-y-5">
                 <div>
                   <h1 className="text-xl font-bold text-slate-900">
-                    Sign in to your SplitPesa account
+                    Welcome back to SplitPesa
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    Access your M-Pesa split ledger, saved groups, and reconciliation reports.
+                    Sign in to view your shared bills, saved friends, and M-Pesa receipts.
                   </p>
                 </div>
 
@@ -1118,10 +1165,10 @@ Content-Type: application/json
                 <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
                   <div className="text-xs">
                     <div className="font-semibold text-slate-900">
-                      Instant Demo Organizer Access
+                      Want to explore first?
                     </div>
-                    <div className="font-mono text-slate-500 text-[11px]">
-                      amina@splitpesa.co.ke
+                    <div className="text-slate-500 text-[11px]">
+                      Try our pre-loaded demo account in one click
                     </div>
                   </div>
                   <button
@@ -1130,7 +1177,7 @@ Content-Type: application/json
                     disabled={authLoading}
                     className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors whitespace-nowrap cursor-pointer"
                   >
-                    Sign In with Demo
+                    Try Demo Account
                   </button>
                 </div>
 
@@ -1148,7 +1195,7 @@ Content-Type: application/json
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="you@company.co.ke"
+                      placeholder="you@example.com"
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
@@ -1187,7 +1234,7 @@ Content-Type: application/json
                     className="w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     <LogIn className="w-3.5 h-3.5" />
-                    <span>{authLoading ? 'Signing In...' : 'Sign In to Portal'}</span>
+                    <span>{authLoading ? 'Signing In...' : 'Sign In'}</span>
                   </button>
                 </form>
               </div>
@@ -1195,10 +1242,10 @@ Content-Type: application/json
               <div className="space-y-5">
                 <div>
                   <h1 className="text-xl font-bold text-slate-900">
-                    Create your SplitPesa account
+                    Create your free SplitPesa account
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    Register with your Kenyan M-Pesa number to start dispatching split requests.
+                    Start splitting bills and tracking M-Pesa payments in seconds.
                   </p>
                 </div>
 
@@ -1208,7 +1255,7 @@ Content-Type: application/json
                       htmlFor="reg-name"
                       className="block text-xs font-semibold text-slate-700 mb-1.5"
                     >
-                      Full Name
+                      Your Full Name
                     </label>
                     <input
                       id="reg-name"
@@ -1234,7 +1281,7 @@ Content-Type: application/json
                       required
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="kelvin@domain.co.ke"
+                      placeholder="kelvin@example.com"
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
@@ -1244,7 +1291,7 @@ Content-Type: application/json
                       htmlFor="reg-phone"
                       className="block text-xs font-semibold text-slate-700 mb-1.5"
                     >
-                      M-Pesa Phone Number (MSISDN)
+                      Your M-Pesa Phone Number
                     </label>
                     <input
                       id="reg-phone"
@@ -1252,14 +1299,14 @@ Content-Type: application/json
                       required
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="0712345678 or 254712345678"
+                      placeholder="0712 345 678"
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Account Type
+                      How will you use SplitPesa?
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -1271,7 +1318,7 @@ Content-Type: application/json
                             : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                         }`}
                       >
-                        Personal / Group
+                        Friends & Groups
                       </button>
                       <button
                         type="button"
@@ -1282,7 +1329,7 @@ Content-Type: application/json
                             : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                         }`}
                       >
-                        Merchant / Business
+                        Restaurant / Business
                       </button>
                     </div>
                   </div>
@@ -1292,7 +1339,7 @@ Content-Type: application/json
                       htmlFor="reg-password"
                       className="block text-xs font-semibold text-slate-700 mb-1.5"
                     >
-                      Password (minimum 8 characters)
+                      Choose a Password (at least 8 characters)
                     </label>
                     <input
                       id="reg-password"
@@ -1329,7 +1376,7 @@ Content-Type: application/json
                         onClick={() => onNavigate('legal', 'privacy')}
                         className="font-semibold text-slate-900 underline"
                       >
-                        Privacy Policy (KDPA 2019)
+                        Privacy Policy
                       </button>
                       .
                     </span>
@@ -1351,7 +1398,7 @@ Content-Type: application/json
                     className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>{authLoading ? 'Creating Account...' : 'Create SplitPesa Account'}</span>
+                    <span>{authLoading ? 'Creating Account...' : 'Create My Account'}</span>
                   </button>
                 </form>
               </div>
@@ -1359,8 +1406,8 @@ Content-Type: application/json
 
             <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
               <span className="flex items-center gap-1">
-                <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Scrypt + HMAC-SHA256 Protected</span>
+                <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Private & Encrypted Account</span>
               </span>
               <button
                 type="button"
@@ -1374,21 +1421,21 @@ Content-Type: application/json
         </main>
       )}
 
-      {/* PAGE 7: LEGAL, PRIVACY, COOKIE & AML POLICIES CENTER */}
+      {/* PAGE 7: LEGAL & PRIVACY CENTER */}
       {currentPage === 'legal' && (
         <main className="flex-1">
           <LegalPoliciesCenter initialSection={initialPolicySection} />
         </main>
       )}
 
-      {/* Multi-Column Website Footer */}
+      {/* Website Footer */}
       <footer className="bg-white border-t border-slate-200 px-6 py-10 mt-auto">
         <div className="max-w-[1280px] mx-auto space-y-6 text-xs text-slate-500">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <div className="font-bold text-slate-900 text-sm">SplitPesa</div>
               <p className="mt-1">
-                Safaricom Daraja M-Pesa Express Bill Splitting & Settlement Platform · Nairobi, Kenya
+                Simple M-Pesa Bill Splitting & Group Payment Tracker · Nairobi, Kenya
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-6">
@@ -1397,7 +1444,7 @@ Content-Type: application/json
                 onClick={() => onNavigate('home')}
                 className="hover:text-slate-900 cursor-pointer"
               >
-                Overview
+                Home
               </button>
               <button
                 type="button"
@@ -1411,28 +1458,28 @@ Content-Type: application/json
                 onClick={() => onNavigate('pricing')}
                 className="hover:text-slate-900 cursor-pointer"
               >
-                Pricing & Limits
+                Pricing
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('security-info')}
                 className="hover:text-slate-900 cursor-pointer"
               >
-                Security
+                Safety & Trust
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate(currentUser ? 'portal' : 'login')}
                 className="font-semibold text-emerald-700 hover:underline cursor-pointer"
               >
-                {currentUser ? 'Open Portal' : 'Sign In'}
+                {currentUser ? 'My Dashboard' : 'Sign In'}
               </button>
             </div>
           </div>
 
           <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-[11px] text-slate-500">
             <div>
-              © {new Date().getFullYear()} SplitPesa. Non-custodial software interface for Safaricom Daraja M-Pesa Express.
+              © {new Date().getFullYear()} SplitPesa. Built for easy group payments with M-Pesa.
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <button
@@ -1440,7 +1487,7 @@ Content-Type: application/json
                 onClick={() => onNavigate('legal', 'privacy')}
                 className="hover:text-slate-900 underline cursor-pointer"
               >
-                Privacy Policy (KDPA 2019)
+                Privacy Policy
               </button>
               <button
                 type="button"
@@ -1454,21 +1501,21 @@ Content-Type: application/json
                 onClick={() => onNavigate('legal', 'cookies')}
                 className="hover:text-slate-900 underline cursor-pointer"
               >
-                Cookie & Storage Policy
+                Cookie Notice
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('legal', 'aml')}
                 className="hover:text-slate-900 underline cursor-pointer"
               >
-                AML & Acceptable Use
+                Fair Use Policy
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('legal', 'reversals')}
                 className="hover:text-slate-900 underline cursor-pointer"
               >
-                Payment & Reversal Policy
+                Refunds & Reversals
               </button>
             </div>
           </div>
