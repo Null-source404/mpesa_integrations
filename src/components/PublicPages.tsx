@@ -16,18 +16,22 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import type { User, AuthResponse } from '../types.js';
+import { PWAInstallButton } from './PWAInstall.js';
+import { LegalPoliciesCenter, type PolicySection } from './LegalPolicies.js';
 
 export type PublicPage =
   | 'home'
   | 'how-it-works'
   | 'pricing'
   | 'security-info'
+  | 'legal'
   | 'login'
   | 'register';
 
 interface PublicPagesProps {
   currentPage: PublicPage;
-  onNavigate: (page: PublicPage | 'portal') => void;
+  initialPolicySection?: PolicySection;
+  onNavigate: (page: PublicPage | 'portal', policySection?: PolicySection) => void;
   currentUser: User | null;
   onAuthSuccess: (user: User, token: string) => void;
   onPreloadCalculator?: (total: number, count: number, title: string) => void;
@@ -41,6 +45,7 @@ const fmt = (n: number): string =>
 
 export const PublicWebsite: React.FC<PublicPagesProps> = ({
   currentPage,
+  initialPolicySection = 'privacy',
   onNavigate,
   currentUser,
   onAuthSuccess,
@@ -65,6 +70,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
   const [regPhone, setRegPhone] = useState<string>('');
   const [regAccountType, setRegAccountType] = useState<'personal' | 'merchant'>('personal');
   const [regPassword, setRegPassword] = useState<string>('');
+  const [regAcceptedTerms, setRegAcceptedTerms] = useState<boolean>(true);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>('');
 
@@ -211,10 +217,22 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
             >
               Security
             </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('legal', 'privacy')}
+              className={`py-1 whitespace-nowrap transition-colors cursor-pointer ${
+                currentPage === 'legal'
+                  ? 'text-slate-900 font-semibold underline underline-offset-8 decoration-2 decoration-emerald-600'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Policies & Legal
+            </button>
           </nav>
 
           {/* Zone 3: 1-2 Primary Actions */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <PWAInstallButton variant="header" />
             {currentUser ? (
               <button
                 type="button"
@@ -287,6 +305,7 @@ export const PublicWebsite: React.FC<PublicPagesProps> = ({
                   >
                     Inspect Daraja Architecture
                   </button>
+                  <PWAInstallButton variant="hero" />
                 </div>
 
                 {/* Unboxed Proof Metrics Bar */}
@@ -1287,6 +1306,35 @@ Content-Type: application/json
                     />
                   </div>
 
+                  <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={regAcceptedTerms}
+                      onChange={(e) => setRegAcceptedTerms(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
+                    />
+                    <span>
+                      I agree to the{' '}
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('legal', 'terms')}
+                        className="font-semibold text-slate-900 underline"
+                      >
+                        Terms & Conditions
+                      </button>{' '}
+                      and{' '}
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('legal', 'privacy')}
+                        className="font-semibold text-slate-900 underline"
+                      >
+                        Privacy Policy (KDPA 2019)
+                      </button>
+                      .
+                    </span>
+                  </label>
+
                   {authError && (
                     <div
                       role="alert"
@@ -1326,51 +1374,103 @@ Content-Type: application/json
         </main>
       )}
 
+      {/* PAGE 7: LEGAL, PRIVACY, COOKIE & AML POLICIES CENTER */}
+      {currentPage === 'legal' && (
+        <main className="flex-1">
+          <LegalPoliciesCenter initialSection={initialPolicySection} />
+        </main>
+      )}
+
       {/* Multi-Column Website Footer */}
       <footer className="bg-white border-t border-slate-200 px-6 py-10 mt-auto">
-        <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-xs text-slate-500">
-          <div>
-            <div className="font-bold text-slate-900 text-sm">SplitPesa</div>
-            <p className="mt-1">
-              Safaricom Daraja M-Pesa Express Bill Splitting & Settlement Platform · Nairobi, Kenya
-            </p>
+        <div className="max-w-[1280px] mx-auto space-y-6 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <div className="font-bold text-slate-900 text-sm">SplitPesa</div>
+              <p className="mt-1">
+                Safaricom Daraja M-Pesa Express Bill Splitting & Settlement Platform · Nairobi, Kenya
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <button
+                type="button"
+                onClick={() => onNavigate('home')}
+                className="hover:text-slate-900 cursor-pointer"
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('how-it-works')}
+                className="hover:text-slate-900 cursor-pointer"
+              >
+                How It Works
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('pricing')}
+                className="hover:text-slate-900 cursor-pointer"
+              >
+                Pricing & Limits
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('security-info')}
+                className="hover:text-slate-900 cursor-pointer"
+              >
+                Security
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate(currentUser ? 'portal' : 'login')}
+                className="font-semibold text-emerald-700 hover:underline cursor-pointer"
+              >
+                {currentUser ? 'Open Portal' : 'Sign In'}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <button
-              type="button"
-              onClick={() => onNavigate('home')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              Overview
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('how-it-works')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              How It Works
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('pricing')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              Pricing & Limits
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('security-info')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              Security
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate(currentUser ? 'portal' : 'login')}
-              className="font-semibold text-emerald-700 hover:underline cursor-pointer"
-            >
-              {currentUser ? 'Open Portal' : 'Sign In'}
-            </button>
+
+          <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-[11px] text-slate-500">
+            <div>
+              © {new Date().getFullYear()} SplitPesa. Non-custodial software interface for Safaricom Daraja M-Pesa Express.
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={() => onNavigate('legal', 'privacy')}
+                className="hover:text-slate-900 underline cursor-pointer"
+              >
+                Privacy Policy (KDPA 2019)
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('legal', 'terms')}
+                className="hover:text-slate-900 underline cursor-pointer"
+              >
+                Terms & Conditions
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('legal', 'cookies')}
+                className="hover:text-slate-900 underline cursor-pointer"
+              >
+                Cookie & Storage Policy
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('legal', 'aml')}
+                className="hover:text-slate-900 underline cursor-pointer"
+              >
+                AML & Acceptable Use
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('legal', 'reversals')}
+                className="hover:text-slate-900 underline cursor-pointer"
+              >
+                Payment & Reversal Policy
+              </button>
+            </div>
           </div>
         </div>
       </footer>

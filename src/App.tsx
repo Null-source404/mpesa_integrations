@@ -40,6 +40,8 @@ import type {
   ContactGroup,
 } from './types.js';
 import { PublicWebsite, type PublicPage } from './components/PublicPages.js';
+import { PWAInstallButton, OfflineIndicator } from './components/PWAInstall.js';
+import { CookieConsentBanner, type PolicySection } from './components/LegalPolicies.js';
 
 const API = '/api';
 const TOKEN_STORAGE_KEY = 'splitpesa_auth_token';
@@ -109,6 +111,7 @@ const getBillSettlementState = (bill: Bill): 'settled' | 'pending' | 'attention'
 export default function App() {
   // Multi-page Website vs Authenticated Portal Route
   const [siteRoute, setSiteRoute] = useState<SiteRoute>('home');
+  const [policySection, setPolicySection] = useState<PolicySection>('privacy');
   const [portalSection, setPortalSection] = useState<PortalSection>('overview');
 
   // Authentication State
@@ -700,19 +703,30 @@ export default function App() {
   // Render Public Multi-Page Website when route is not 'portal'
   if (siteRoute !== 'portal') {
     return (
-      <PublicWebsite
-        currentPage={siteRoute}
-        onNavigate={(next) => {
-          if (next === 'portal' && !currentUser) {
-            setSiteRoute('login');
-          } else {
-            setSiteRoute(next);
-          }
-        }}
-        currentUser={currentUser}
-        onAuthSuccess={handleAuthSuccess}
-        onPreloadCalculator={handlePreloadFromHero}
-      />
+      <>
+        <OfflineIndicator />
+        <PublicWebsite
+          currentPage={siteRoute}
+          initialPolicySection={policySection}
+          onNavigate={(next, section) => {
+            if (section) setPolicySection(section);
+            if (next === 'portal' && !currentUser) {
+              setSiteRoute('login');
+            } else {
+              setSiteRoute(next);
+            }
+          }}
+          currentUser={currentUser}
+          onAuthSuccess={handleAuthSuccess}
+          onPreloadCalculator={handlePreloadFromHero}
+        />
+        <CookieConsentBanner
+          onOpenPolicies={(sec) => {
+            setPolicySection(sec);
+            setSiteRoute('legal');
+          }}
+        />
+      </>
     );
   }
 
@@ -727,9 +741,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col lg:flex-row">
+      <OfflineIndicator />
+
       {/* Left Sidebar Navigation (260px fixed width on desktop) */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col justify-between shrink-0">
         <div>
           {/* Brand Header */}
           <div className="h-16 px-6 border-b border-slate-200 flex items-center justify-between">
@@ -794,8 +810,10 @@ export default function App() {
           </nav>
         </div>
 
-        {/* Sidebar Footer: Website Switcher & User Account */}
+        {/* Sidebar Footer: PWA Install, Website Switcher, Legal Links & User Account */}
         <div className="p-4 border-t border-slate-200 space-y-3">
+          <PWAInstallButton variant="sidebar" />
+
           <button
             type="button"
             onClick={() => setSiteRoute('home')}
@@ -803,6 +821,18 @@ export default function App() {
           >
             <Globe className="w-3.5 h-3.5" />
             <span>Public Website Pages</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPolicySection('privacy');
+              setSiteRoute('legal');
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Privacy, Cookie & Legal Policies</span>
           </button>
 
           {currentUser ? (
@@ -839,20 +869,27 @@ export default function App() {
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Contextual Header */}
-        <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between gap-4">
+        <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>SplitPesa Portal</span>
+            <button
+              type="button"
+              onClick={() => setSiteRoute('home')}
+              className="font-bold text-slate-900 lg:font-normal lg:text-slate-500 hover:text-slate-900 cursor-pointer"
+            >
+              SplitPesa
+            </button>
             <span>/</span>
             <span className="font-semibold text-slate-900">
               {sectionLabels[portalSection]}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <PWAInstallButton variant="header" />
             <button
               type="button"
               onClick={exportLedgerCsv}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export CSV</span>
@@ -860,13 +897,43 @@ export default function App() {
             <button
               type="button"
               onClick={() => setPortalSection('new-split')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Split Bill</span>
             </button>
           </div>
         </header>
+
+        {/* Mobile Portal Navigation Strip (Visible on Android / iOS / Mobile screens) */}
+        <nav
+          aria-label="Mobile Portal Navigation"
+          className="lg:hidden bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-1.5 overflow-x-auto"
+        >
+          {(
+            [
+              { id: 'overview', label: 'Overview' },
+              { id: 'new-split', label: 'New Split' },
+              { id: 'bills', label: `Bills (${bills.length})` },
+              { id: 'transactions', label: 'Ledger' },
+              { id: 'contacts', label: 'Contacts' },
+              { id: 'security', label: 'Security' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setPortalSection(item.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer ${
+                portalSection === item.id
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
         {/* Main Viewport Content */}
         <main className="flex-1 p-8 max-w-[1200px] w-full mx-auto space-y-8">
@@ -2090,6 +2157,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <CookieConsentBanner
+        onOpenPolicies={(sec) => {
+          setPolicySection(sec);
+          setSiteRoute('legal');
+        }}
+      />
     </div>
   );
 }

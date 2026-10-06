@@ -3,11 +3,63 @@ import type { Bill, AuditLogEntry, User, Contact, ContactGroup } from '../../src
 import { computeSha256, computeHmacSignature, hashPassword } from '../services/security.js';
 
 let pool: mysql.Pool | null = null;
+let mysqlConnected = false;
+
+async function initMysqlSchema(activePool: mysql.Pool): Promise<void> {
+  try {
+    await activePool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(32) PRIMARY KEY,
+        name VARCHAR(80) NOT NULL,
+        email VARCHAR(120) UNIQUE NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        account_type VARCHAR(20) DEFAULT 'personal',
+        password_hash VARCHAR(255) NOT NULL,
+        created_at VARCHAR(40) NOT NULL
+      );
+    `);
+    await activePool.query(`
+      CREATE TABLE IF NOT EXISTS bills (
+        id VARCHAR(32) PRIMARY KEY,
+        owner_id VARCHAR(32),
+        title VARCHAR(120) NOT NULL,
+        category VARCHAR(60) NOT NULL,
+        total DECIMAL(12, 2) NOT NULL,
+        split_mode VARCHAR(20) NOT NULL,
+        idempotency_key VARCHAR(80) UNIQUE NOT NULL,
+        signature_hash VARCHAR(64) NOT NULL,
+        mode VARCHAR(20) NOT NULL,
+        participants_json JSON NOT NULL,
+        created_at VARCHAR(40) NOT NULL,
+        updated_at VARCHAR(40) NOT NULL
+      );
+    `);
+    await activePool.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id VARCHAR(32) PRIMARY KEY,
+        timestamp VARCHAR(40) NOT NULL,
+        event VARCHAR(60) NOT NULL,
+        bill_id VARCHAR(32) NOT NULL,
+        actor VARCHAR(80) NOT NULL,
+        details TEXT NOT NULL,
+        prev_hash VARCHAR(64) NOT NULL,
+        hash VARCHAR(64) NOT NULL,
+        severity VARCHAR(20) NOT NULL
+      );
+    `);
+    mysqlConnected = true;
+    console.log('✅ MySQL schema verified and ready');
+  } catch (err) {
+    mysqlConnected = false;
+    console.warn('MySQL schema check skipped (using in-memory store):', (err as Error).message);
+  }
+}
 
 if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
   try {
     pool = mysql.createPool({
       host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 3306,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME,
@@ -15,11 +67,14 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
       connectionLimit: 10,
       queueLimit: 0,
     });
+    void initMysqlSchema(pool);
   } catch (err) {
     console.warn('MySQL pool creation failed, falling back to in-memory store:', err);
     pool = null;
   }
 }
+
+export const isMysqlConnected = (): boolean => mysqlConnected;
 
 export interface StoredUser extends User {
   passwordHash: string;
@@ -375,6 +430,33 @@ export const billStore = {
   async save(bill: Bill): Promise<Bill> {
     bill.updatedAt = new Date().toISOString();
     memoryBills.set(bill.id, bill);
+    if (pool && mysqlConnected) {
+      try {
+        await pool.query(
+          `INSERT INTO bills (id, owner_id, title, category, total, split_mode, idempotency_key, signature_hash, mode, participants_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             participants_json = VALUES(participants_json),
+             updated_at = VALUES(updated_at)`,
+          [
+            bill.id,
+            bill.ownerId || null,
+            bill.title,
+            bill.category,
+            bill.total,
+            bill.splitMode,
+            bill.idempotencyKey,
+            bill.signatureHash,
+            bill.mode,
+            JSON.stringify(bill.participants),
+            bill.createdAt,
+            bill.updatedAt,
+          ]
+        );
+      } catch (err) {
+        console.warn('MySQL bill sync error:', (err as Error).message);
+      }
+    }
     return bill;
   },
 
