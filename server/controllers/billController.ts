@@ -466,3 +466,116 @@ export const settleAllPending = async (req: Request, res: Response): Promise<voi
     });
   }
 };
+
+export const scanToPayBill = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const billId = String(req.params.billId || '');
+    const { participantId, name, phone, amount, completeImmediately } = req.body as {
+      participantId?: string;
+      name?: string;
+      phone?: string;
+      amount?: number;
+      completeImmediately?: boolean;
+    };
+
+    const bill = await billStore.get(billId);
+    if (!bill) {
+      res.status(404).json({ message: 'We could not find this bill.' });
+      return;
+    }
+
+    const rawPhone = String(phone || '').trim();
+    if (!isValidKenyanPhone(rawPhone)) {
+      res.status(400).json({
+        message: 'Please enter a valid Kenyan M-Pesa number (for example, 0712 345 678).',
+      });
+      return;
+    }
+    const normalizedPhone = normalizeKenyanPhone(rawPhone);
+
+    let targetParticipant: Participant;
+
+    if (participantId) {
+      const found = bill.participants.find(
+        (p) => p.id === participantId || p.phone === participantId
+      );
+      if (!found) {
+        res.status(404).json({ message: 'We could not find your name on this bill.' });
+        return;
+      }
+      found.phone = normalizedPhone;
+      targetParticipant = found;
+    } else {
+      const cleanName = sanitizeText(name, 40) || 'Guest Payer';
+      const customAmt = Number(amount);
+      const shareAmount =
+        Number.isFinite(customAmt) && customAmt >= 1
+          ? Number(customAmt.toFixed(2))
+          : bill.participants[0]?.amount || 500;
+
+      targetParticipant = {
+        id: `P-${bill.id}-${bill.participants.length + 1}`,
+        name: cleanName,
+        phone: normalizedPhone,
+        amount: shareAmount,
+        status: 'pending',
+        receipt: null,
+        checkoutRequestId: null,
+        merchantRequestId: null,
+        attempts: 1,
+        updatedAt: new Date().toISOString(),
+        failureReason: null,
+      };
+      bill.participants.push(targetParticipant);
+      bill.total = Number(
+        bill.participants.reduce((sum, p) => sum + p.amount, 0).toFixed(2)
+      );
+    }
+
+    const stkResponse = await stkPush(
+      targetParticipant.phone,
+      targetParticipant.amount,
+      bill.id,
+      bill.title
+    );
+    targetParticipant.checkoutRequestId = stkResponse.CheckoutRequestID;
+    targetParticipant.merchantRequestId = stkResponse.MerchantRequestID;
+    targetParticipant.attempts = (targetParticipant.attempts || 0) + 1;
+    targetParticipant.updatedAt = new Date().toISOString();
+
+    if (completeImmediately && !isDarajaConfigured()) {
+      targetParticipant.status = 'paid';
+      targetParticipant.receipt = targetParticipant.receipt || generateReceipt();
+      targetParticipant.failureReason = null;
+      recordCallbackVerified();
+    } else {
+      targetParticipant.status = 'pending';
+      targetParticipant.failureReason = null;
+    }
+
+    await billStore.save(bill);
+
+    appendAuditLog({
+      event: 'QR_SCAN_PAYMENT_INITIATED',
+      billId: bill.id,
+      actor: targetParticipant.name,
+      details: `Initiated QR scan payment of KES ${targetParticipant.amount.toFixed(2)} from +${targetParticipant.phone}`,
+      severity: 'success',
+    });
+
+    res.status(200).json({
+      message:
+        targetParticipant.status === 'paid'
+          ? `Payment confirmed! M-Pesa Receipt: ${targetParticipant.receipt}`
+          : `M-Pesa PIN prompt sent to +${targetParticipant.phone}. Check your phone to complete payment.`,
+      billId: bill.id,
+      bill,
+      participant: targetParticipant,
+    });
+  } catch {
+    res.status(500).json({
+      message: 'We could not start your M-Pesa payment right now. Please try again.',
+    });
+  }
+};
+

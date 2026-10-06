@@ -43,17 +43,15 @@ async function startServer() {
       appType: 'spa',
     });
 
-    // Prevent Vite 8 client from throwing unhandled WebSocket errors when HMR is disabled
+    // Prevent Vite 8 client from throwing WebSocket or SendBeforeConnectError when HMR is disabled
     app.get('/@vite/client', async (_req: Request, res: Response, next: NextFunction) => {
       try {
         const transformed = await vite.transformRequest('/@vite/client');
         if (transformed?.code) {
           const patchedCode = transformed.code
-            .replace(
-              'transport.connect(createHMRHandler(handleMessage));',
-              '/* HMR WebSocket connection skipped when HMR is disabled */'
-            )
-            .replace(/throw e;/g, 'return;');
+            .replace(/await wsTransport\.connect\(handlers\);/g, 'await Promise.resolve();')
+            .replace(/await wsTransport\.disconnect\(\);/g, 'await Promise.resolve();')
+            .replace(/wsTransport\.send\(data\);/g, 'void 0;');
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
           res.setHeader('Cache-Control', 'no-cache');
           res.status(200).send(patchedCode);

@@ -8,6 +8,7 @@ import {
   settleAllPending,
   addSavedContact,
   removeSavedContact,
+  scanToPayBill,
 } from '../controllers/billController.js';
 import {
   registerUser,
@@ -36,5 +37,6 @@ router.post('/callback', apiRateLimiter(120, 60_000), handleCallback);
 router.get('/bill-status/:billId', apiRateLimiter(60, 60_000), getBillStatus);
 router.post('/simulate-status/:billId', apiRateLimiter(60, 60_000), simulateParticipantStatus);
 router.post('/settle-all/:billId', apiRateLimiter(30, 60_000), settleAllPending);
+router.post('/bills/:billId/scan-pay', apiRateLimiter(40, 60_000), scanToPayBill);
 
 export default router;
