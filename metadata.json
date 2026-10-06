@@ -1,0 +1,5 @@
+{
+  "name": "SplitPesa — M-Pesa Bill Splitter",
+  "description": "Split bills with friends and track real-time M-Pesa STK Push payments.",
+  "requestFramePermissions": []
+}

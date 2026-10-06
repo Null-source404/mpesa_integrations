@@ -1,5 +1,0 @@
-{
-  "ext": "cjs",
-  "watch": ["."],
-  "ignore": ["node_modules"]
-}
