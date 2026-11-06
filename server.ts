@@ -11,7 +11,16 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  
+  // Parse port from CLI flags (e.g. tsx server.ts --port 3000) or process.env.PORT
+  let PORT = Number(process.env.PORT) || 3000;
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = parseInt(process.argv[portArgIndex + 1], 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      PORT = parsed;
+    }
+  }
 
   app.disable('x-powered-by');
   app.use(securityHeadersMiddleware);
@@ -39,6 +48,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: false,
+        ws: false,
       },
       appType: 'spa',
     });

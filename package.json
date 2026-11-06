@@ -7,7 +7,10 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "start": "NODE_ENV=production tsx server.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/mpesa.test.ts",
+    "audit": "npm audit --audit-level=high",
+    "check": "npm run lint && npm test && npm run build"
   },
   "keywords": [],
   "author": "",

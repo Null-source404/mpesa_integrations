@@ -417,6 +417,47 @@ export const userStore = {
     const { passwordHash: _pw, ...publicUser } = user;
     return publicUser;
   },
+  updatePassword(email: string, newPasswordHash: string): boolean {
+    const user = memoryUsers.get(email.trim().toLowerCase());
+    if (!user) return false;
+    user.passwordHash = newPasswordHash;
+    persistLocalStore();
+    if (pool && mysqlConnected) {
+      pool
+        .query('UPDATE users SET password_hash = ? WHERE email = ?', [
+          newPasswordHash,
+          email.trim().toLowerCase(),
+        ])
+        .catch(() => {});
+    }
+    return true;
+  },
+  updateProfile(
+    userId: string,
+    updates: { name?: string; phone?: string }
+  ): User | null {
+    let found: StoredUser | null = null;
+    for (const u of memoryUsers.values()) {
+      if (u.id === userId) {
+        found = u;
+        break;
+      }
+    }
+    if (!found) return null;
+    if (updates.name && updates.name.trim()) found.name = updates.name.trim();
+    if (updates.phone && updates.phone.trim()) found.phone = updates.phone.trim();
+    persistLocalStore();
+    if (pool && mysqlConnected) {
+      pool
+        .query('UPDATE users SET name = ?, phone = ? WHERE id = ?', [
+          found.name,
+          found.phone,
+          found.id,
+        ])
+        .catch(() => {});
+    }
+    return this.toPublicUser(found);
+  },
 };
 
 export const contactStore = {

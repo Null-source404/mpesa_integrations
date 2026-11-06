@@ -158,3 +158,67 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
     res.status(200).json({ message: 'You have been signed out.' });
   }
 };
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      res.status(400).json({ message: 'Please provide a valid email address.' });
+      return;
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      res.status(400).json({
+        message: 'Your new password must be at least 8 characters long.',
+      });
+      return;
+    }
+
+    const user = userStore.findByEmail(email);
+    if (!user) {
+      // Return success-like response to prevent email enumeration
+      res.status(200).json({
+        message: 'If an account exists with this email, your password has been updated.',
+      });
+      return;
+    }
+
+    const newHash = hashPassword(newPassword);
+    userStore.updatePassword(email, newHash);
+
+    res.status(200).json({
+      message: 'Password successfully updated! You can now sign in with your new password.',
+    });
+  } catch {
+    res.status(500).json({
+      message: 'We could not update your password right now. Please try again.',
+    });
+  }
+};
+
+export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const verified = verifySessionToken(token);
+
+    if (!verified.valid || !verified.userId) {
+      res.status(401).json({ message: 'Please sign in to update your profile.' });
+      return;
+    }
+
+    const { name, phone } = req.body;
+    const updated = userStore.updateProfile(verified.userId, { name, phone });
+    if (!updated) {
+      res.status(404).json({ message: 'User account not found.' });
+      return;
+    }
+
+    res.status(200).json({
+      message: 'Profile updated successfully.',
+      user: updated,
+    });
+  } catch {
+    res.status(500).json({ message: 'We could not update your profile right now.' });
+  }
+};
+

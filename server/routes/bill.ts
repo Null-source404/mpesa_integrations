@@ -15,6 +15,8 @@ import {
   loginUser,
   getCurrentUser,
   logoutUser,
+  resetPassword,
+  updateUserProfile,
 } from '../controllers/authController.js';
 import { apiRateLimiter } from '../services/security.js';
 
@@ -25,6 +27,8 @@ router.post('/auth/register', apiRateLimiter(20, 60_000), registerUser);
 router.post('/auth/login', apiRateLimiter(30, 60_000), loginUser);
 router.get('/auth/me', apiRateLimiter(60, 60_000), getCurrentUser);
 router.post('/auth/logout', apiRateLimiter(30, 60_000), logoutUser);
+router.post('/auth/reset-password', apiRateLimiter(15, 60_000), resetPassword);
+router.patch('/auth/profile', apiRateLimiter(30, 60_000), updateUserProfile);
 
 // Contacts & Groups routes
 router.post('/contacts', apiRateLimiter(40, 60_000), addSavedContact);

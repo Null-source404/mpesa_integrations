@@ -178,42 +178,42 @@ export const splitBill = async (req: Request, res: Response): Promise<void> => {
     }
 
     const splitMode: SplitMode = rawBody.splitMode === 'custom' ? 'custom' : 'equal';
-    const totalCents = Math.round(numericTotal * 100);
+    // Safaricom Daraja STK Push only accepts whole shillings (integers)
+    const wholeShillingsTotal = Math.round(numericTotal);
     const count = rawParticipants.length;
 
     const participantAmounts: number[] = [];
     if (splitMode === 'equal') {
-      const baseCents = Math.floor(totalCents / count);
-      const remainderCents = totalCents - baseCents * count;
+      const baseShillings = Math.floor(wholeShillingsTotal / count);
+      const remainderShillings = wholeShillingsTotal - baseShillings * count;
       for (let i = 0; i < count; i++) {
-        const cents = i < remainderCents ? baseCents + 1 : baseCents;
-        participantAmounts.push(Number((cents / 100).toFixed(2)));
+        const amt = i < remainderShillings ? baseShillings + 1 : baseShillings;
+        participantAmounts.push(amt);
       }
     } else {
-      let sumCents = 0;
+      let sumShillings = 0;
       for (let i = 0; i < count; i++) {
-        const amt = Number(rawParticipants[i].amount);
+        const amt = Math.round(Number(rawParticipants[i].amount));
         const displayName = sanitizeText(rawParticipants[i].name, 40) || `Person #${i + 1}`;
         if (!Number.isFinite(amt) || amt < 1) {
           res.status(400).json({
-            message: `Please enter an amount of at least KES 1.00 for ${displayName}.`,
+            message: `Please enter an amount of at least KES 1 for ${displayName} (whole shillings only).`,
           });
           return;
         }
         if (amt > 250_000) {
           res.status(400).json({
-            message: `${displayName}'s share exceeds the M-Pesa limit of KES 250,000.00 per payment.`,
+            message: `${displayName}'s share exceeds the M-Pesa limit of KES 250,000 per payment.`,
           });
           return;
         }
-        const cents = Math.round(amt * 100);
-        sumCents += cents;
-        participantAmounts.push(Number((cents / 100).toFixed(2)));
+        sumShillings += amt;
+        participantAmounts.push(amt);
       }
-      if (Math.abs(sumCents - totalCents) > 1) {
-        const diffKes = ((totalCents - sumCents) / 100).toFixed(2);
+      if (sumShillings !== wholeShillingsTotal) {
+        const diffKes = Math.abs(wholeShillingsTotal - sumShillings);
         res.status(400).json({
-          message: `The individual shares do not add up to the total bill (difference of KES ${diffKes}).`,
+          message: `The individual shares must add up to the total bill of KES ${wholeShillingsTotal} (difference of KES ${diffKes}).`,
         });
         return;
       }
@@ -251,7 +251,7 @@ export const splitBill = async (req: Request, res: Response): Promise<void> => {
       id: billId,
       title: billTitle,
       category: billCategory,
-      total: Number((totalCents / 100).toFixed(2)),
+      total: wholeShillingsTotal,
       splitMode,
       createdAt: nowIso,
       updatedAt: nowIso,

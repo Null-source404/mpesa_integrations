@@ -106,31 +106,47 @@ export const stkPush = async (
     };
   }
 
-  const token = await getAccessToken();
-  const { password, timestamp } = generatePassword();
+  try {
+    const token = await getAccessToken();
+    const { password, timestamp } = generatePassword();
 
-  const response = await axios.post<StkPushResponse>(
-    'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
-    {
-      BusinessShortCode: process.env.DARAJA_SHORTCODE,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
-      Amount: Math.ceil(amount),
-      PartyA: normalizedPhone,
-      PartyB: process.env.DARAJA_SHORTCODE,
-      PhoneNumber: normalizedPhone,
-      CallBackURL: process.env.DARAJA_CALLBACK_URL || 'https://example.com/api/callback',
-      AccountReference: accountRef.slice(0, 12),
-      TransactionDesc: description.slice(0, 13),
-    },
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      timeout: 15000,
-    }
-  );
+    const response = await axios.post<StkPushResponse>(
+      'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
+      {
+        BusinessShortCode: process.env.DARAJA_SHORTCODE,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: Math.ceil(amount),
+        PartyA: normalizedPhone,
+        PartyB: process.env.DARAJA_SHORTCODE,
+        PhoneNumber: normalizedPhone,
+        CallBackURL: process.env.DARAJA_CALLBACK_URL || 'https://example.com/api/callback',
+        AccountReference: accountRef.slice(0, 12),
+        TransactionDesc: description.slice(0, 13),
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (err: unknown) {
+    const axiosError = err as { response?: { data?: { errorMessage?: string; ResponseDescription?: string } } };
+    const errMessage =
+      axiosError.response?.data?.errorMessage ||
+      axiosError.response?.data?.ResponseDescription ||
+      'Safaricom STK push could not reach this phone number. Please verify the number is active on M-Pesa.';
+
+    return {
+      MerchantRequestID: `MR-ERR-${Date.now().toString().slice(-4)}`,
+      CheckoutRequestID: `ws_CO_ERR_${Date.now()}_${normalizedPhone}`,
+      ResponseCode: '1',
+      ResponseDescription: errMessage,
+      CustomerMessage: errMessage,
+    };
+  }
 };
 
 export const stkPushQuery = async (checkoutRequestId: string): Promise<StkQueryResponse> => {

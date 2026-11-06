@@ -1,17 +1,20 @@
 # SplitPesa — M-Pesa Bill Splitter & Group Payment Tracker
 
-SplitPesa is a full-stack TypeScript web application (React 19 + Vite + Tailwind CSS + Express 5) that lets friends, housemates, and businesses split shared bills, send Safaricom M-Pesa payment prompts (`STK Push`), and track verified payment receipts in real time.
+SplitPesa is a full-stack TypeScript web application (React 19 + Vite + Tailwind CSS + Express 5) that lets friends, housemates, and businesses split shared bills, send Safaricom M-Pesa payment prompts (`STK Push`), generate scannable table QR codes, and track verified payment receipts in real time.
 
 ---
 
-## Features
+## Key Features
 
-- **Multi-Page Website & Dashboard**: Includes Overview, How It Works, Pricing, Safety & Trust, Legal & Privacy Policies, Sign In / Registration, and a full Bill Splitting Dashboard.
-- **Equal & Custom Bill Splits**: Split bills evenly to the exact shilling or assign custom meal/item amounts for 2 to 15 people.
-- **Live & Demo M-Pesa Support**: Works out of the box in a safe Demo Mode for local testing, and switches automatically to live Safaricom M-Pesa phone prompts when Daraja credentials are provided in `.env`.
-- **Zero-Setup Local Persistence + Auto MySQL Sync**: Works immediately after `git clone` using a local persistent store (`.data/splitpesa-store.json`), and automatically creates and syncs MySQL tables (`users`, `bills`, `contacts`) as soon as `DB_HOST` is configured.
-- **Installable Mobile & Desktop App (PWA)**: Installable on Android, iPhone/iPad (Safari Add to Home Screen), and Desktop with offline view support.
-- **Built-In Payment Safety**: Protects against accidental double charges, blocks duplicate phone numbers on the same bill, encrypts user passwords, and provides friendly error messages without exposing server internals.
+- **Multi-Page Website & Modern Workspace**: Includes Overview, How It Works, Pricing, Safety & Trust, Legal & Privacy Policies, Sign In / Registration with high-resolution lifestyle photography, and an interactive Bill Splitting Dashboard.
+- **Interactive Live M-Pesa SIM Toolkit Simulator**: Test-drive the real Safaricom M-Pesa PIN prompt directly on the sign-up page or in workspace settings (`"Do you want to pay KES ... to SplitPesa? Enter PIN: ••••"`), observing live simulated M-Pesa receipt verification and audit logging.
+- **Dynamic Table QR Codes**: Generates both instant camera scan-to-pay links (`/?payBill=...`) and structured PayBill (`174379`) QR codes for Kenyan mobile banking apps, allowing guests to tap their name or join a bill on the spot.
+- **Itemized Dish & Tip / VAT Calculator**: Break down complex restaurant receipts by dish, assign attendees to specific items, and automatically split 16% Kenyan VAT or custom tips proportionally.
+- **One-Tap WhatsApp Summary**: Automatically formats a clean checklist of who has paid (`✅ SJK...`) vs. who is waiting for their M-Pesa prompt, complete with the direct scan-to-pay link.
+- **Live & Sandbox Daraja M-Pesa API**: Works out of the box in a zero-config Sandbox/Demo mode for local evaluation, and connects automatically to live Safaricom M-Pesa phone prompts when Daraja credentials are provided in `.env`.
+- **Zero-Setup Local Persistence + Auto MySQL Sync**: Runs immediately upon `git clone` using a local persistent store (`.data/splitpesa-store.json`), and automatically creates and syncs MySQL tables (`users`, `bills`, `contacts`) as soon as `DB_HOST` is configured.
+- **Installable PWA**: Installable on Android, iOS (Safari Add to Home Screen), and Desktop with offline view support.
+- **CI/CD & Security Audits**: Includes GitHub Actions workflow running automated `npm audit` vulnerability checks, TypeScript linting, and production builds on push/PR.
 
 ---
 
@@ -87,3 +90,27 @@ To send real M-Pesa STK Push prompts that ask users for their M-Pesa PIN on thei
 - `npm run build` — Builds the production frontend bundle into `dist/`
 - `npm start` — Runs the production server (`NODE_ENV=production tsx server.ts`)
 - `npm run lint` — Runs TypeScript type checking (`tsc --noEmit`)
+- `npm run audit` — Runs npm security audit checking for high/critical vulnerabilities
+- `npm run check` — Runs both type check and production build verification
+
+---
+
+## Docker & Container Deployment
+
+To build and run SplitPesa as a containerized production app:
+
+```bash
+docker build -t splitpesa .
+docker run -p 3000:3000 splitpesa
+```
+
+---
+
+## GitHub Actions Automated CI & Security Checks
+
+A pre-configured CI pipeline is located in `.github/workflows/ci.yml`. On every push and pull request, GitHub Actions will automatically:
+1. Check out the codebase and set up Node.js 22.
+2. Install clean dependencies (`npm ci`).
+3. Run `npm audit --audit-level=high` to ensure 0 critical vulnerabilities.
+4. Run `npm run lint` (TypeScript verification).
+5. Execute `npm run build` to verify production assets compile without errors.
